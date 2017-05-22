@@ -7,6 +7,7 @@
 local flu = require "flu"
 local pip = require "gobo.alienvfs.pip"
 local lua = require "gobo.alienvfs.lua"
+local cpan = require "gobo.alienvfs.cpan"
 local posix = require "posix"
 local glob = require "posix.glob"
 local stat = require "posix.sys.stat"
@@ -231,6 +232,10 @@ add_python_namespaces(python3, "/Programs/Python/3.*/lib/python3*")
 -- Lua
 local luans = {"/System/Aliens/LuaRocks"}
 mknamespace(lua, luans, "LuaRocks:")
+
+-- CPAN
+local cpanns = {"/System/Aliens/CPAN"}
+mknamespace(cpan, cpanns, "CPAN:")
 
 local argv = {"AlienVFS", select(1, ...)}
 flu.main(argv, vfs)
