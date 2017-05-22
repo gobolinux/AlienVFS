@@ -22,8 +22,10 @@ local lua = {
             for path in contents:lines() do
                 table.insert(program.filelist, path:sub(program.namespace:len()+2))
             end
+            contents:close()
             table.insert(programs, program)
         end
+        f:close()
         return programs
     end
 }
