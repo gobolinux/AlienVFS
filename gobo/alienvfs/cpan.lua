@@ -31,7 +31,7 @@ local cpan = {
             if line:find(module .. "$") ~= nil then
                 watch = true
             elseif watch == true then
-                istart, iend = line:find('"installed into: ')
+                local istart, iend = line:find('"installed into: ')
                 if istart ~= nil then
                     namespace = line:sub(iend+1, -2)
                 else
