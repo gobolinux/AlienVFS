@@ -8,6 +8,7 @@ local flu = require "flu"
 local pip = require "gobo.alienvfs.pip"
 local lua = require "gobo.alienvfs.lua"
 local cpan = require "gobo.alienvfs.cpan"
+local rubygems = require "gobo.alienvfs.rubygems"
 local posix = require "posix"
 local glob = require "posix.glob"
 local stat = require "posix.sys.stat"
@@ -236,6 +237,10 @@ mknamespace(lua, luans, "LuaRocks:")
 -- CPAN
 local cpanns = {"/System/Aliens/CPAN"}
 mknamespace(cpan, cpanns, "CPAN:")
+
+-- RubyGems
+local rubygemsns = {"/System/Aliens/RubyGems"}
+mknamespace(rubygems, rubygemsns, "RubyGems:")
 
 local argv = {"AlienVFS", "-oallow_other", select(1, ...)}
 flu.main(argv, vfs)
