@@ -1,5 +1,3 @@
-#!/usr/bin/lua
-
 -- AlienVFS: PIP backend
 -- Written by Lucas C. Villa Real <lucasvr@gobolinux.org>
 -- Released under the GNU GPL version 2
@@ -8,15 +6,15 @@ local lfs = require "lfs"
 local posix = require "posix"
 local lunajson = require "lunajson"
 
-local PIP = {
+local pip = {
     pip_dir = nil,
 
     readNameVersion = function(self, f)
         local name = nil
         local version = nil
         for line in f:lines() do
-            name_ = line:find("Name: ")
-            version_ = line:find("Version: ")
+            local name_ = line:find("Name: ")
+            local version_ = line:find("Version: ")
             if name_ ~= nil then
                 name = self:getValue(line)
             end
@@ -34,7 +32,7 @@ local PIP = {
             program.name, program.version = self:readNameVersion(f)
             f:close()
         end
-        local f = io.open(egg_dir.."/installed-files.txt")
+        f = io.open(egg_dir.."/installed-files.txt")
         if f ~= nil then
             program.filelist = {}
             for line in f:lines() do
@@ -69,7 +67,7 @@ local PIP = {
                 f:close()
             end
         end
-        local f = io.open(dist_dir.."/RECORD")
+        f = io.open(dist_dir.."/RECORD")
         if f ~= nil then
             program.filelist = {}
             for line in f:lines() do
@@ -102,4 +100,4 @@ local PIP = {
     end
 }
 
-return PIP
+return pip

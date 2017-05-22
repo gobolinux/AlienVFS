@@ -5,7 +5,7 @@
 -- Released under the GNU GPL version 2
 
 local flu = require "flu"
-local pip = require "PIP"
+local pip = require "gobo.alienvfs.pip"
 local posix = require "posix"
 local glob = require "posix.glob"
 local stat = require "posix.sys.stat"
@@ -13,7 +13,7 @@ local stat = require "posix.sys.stat"
 
 -- Basic operations on paths
 
-Path = {}
+local Path = {}
 Path.__index = Path
 
 function Path:split(path, istart, iend)
@@ -34,7 +34,7 @@ end
 
 -- Basic operations on dentries
 
-Dentry = {}
+local Dentry = {}
 Dentry.__index = Dentry
 
 function Dentry:create(parent, name, namespace)
@@ -90,7 +90,7 @@ function Dentry:populate(filelist, namespace)
             if i == 1 then
                 Dentry:create(self, name, namespace)
             else
-                parent = self:lookup(p:split(path, 1, i-1))
+                local parent = self:lookup(p:split(path, 1, i-1))
                 Dentry:create(parent, name, namespace)
             end
         end
@@ -194,7 +194,7 @@ end
 
 -- Main operation
 
-function mknamespace(namespaces, prefix)
+local function mknamespace(namespaces, prefix)
     for _,ns in pairs(namespaces) do
         local pip_programs = pip:parse(ns)
         for _,program in pairs(pip_programs) do
@@ -207,38 +207,26 @@ function mknamespace(namespaces, prefix)
     end
 end
 
+local function add_python_namespaces(namespaces, root)
+    local alt = glob.glob(root)
+    if alt then
+        for _, ns in pairs(alt) do
+            table.insert(namespaces, ns .. "/site-packages")
+        end
+    end
+end
+
 -- Python2
-local namespaces = {"/System/Aliens/PIP"}
-local alt = glob.glob("/System/Aliens/PIP/lib/python2*")
-if alt ~= nil then
-    for _,ns in pairs(alt) do
-        table.insert(namespaces, ns .. "/site-packages")
-    end
-end
-local alt = glob.glob("/Programs/Python/2.*/lib/python2*")
-if alt ~= nil then
-    for _,ns in pairs(alt) do
-        table.insert(namespaces, ns .. "/site-packages")
-    end
-end
-mknamespace(namespaces, "PIP:")
+local python2 = {"/System/Aliens/PIP"}
+add_python_namespaces(python2, "/System/Aliens/PIP/lib/python2*")
+add_python_namespaces(python2, "/Programs/Python/2.*/lib/python2*")
+mknamespace(python2, "PIP:")
 
 -- Python3
-local namespaces = {"/System/Aliens/PIP"}
-local alt = glob.glob("/System/Aliens/PIP/lib/python3*")
-if alt ~= nil then
-    for _,ns in pairs(alt) do
-        table.insert(namespaces, ns .. "/site-packages")
-    end
-end
-local alt = glob.glob("/Programs/Python/3.*/lib/python3*")
-if alt ~= nil then
-    for _,ns in pairs(alt) do
-        table.insert(namespaces, ns .. "/site-packages")
-    end
-end
--- mknamespace(namespaces, "PIP3:")
-
+local python3 = {"/System/Aliens/PIP"}
+add_python_namespaces(python3, "/System/Aliens/PIP/lib/python3*")
+add_python_namespaces(python3, "/Programs/Python/3.*/lib/python3*")
+-- mknamespace(python3, "PIP3:")
 
 local argv = {"AlienVFS", select(1, ...)}
 flu.main(argv, vfs)
