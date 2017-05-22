@@ -6,6 +6,7 @@
 
 local flu = require "flu"
 local pip = require "gobo.alienvfs.pip"
+local lua = require "gobo.alienvfs.lua"
 local posix = require "posix"
 local glob = require "posix.glob"
 local stat = require "posix.sys.stat"
@@ -194,14 +195,13 @@ end
 
 -- Main operation
 
-local function mknamespace(namespaces, prefix)
+local function mknamespace(backend, namespaces, prefix)
     for _,ns in pairs(namespaces) do
-        local pip_programs = pip:parse(ns)
-        for _,program in pairs(pip_programs) do
+        for _,program in pairs(backend:parse(ns)) do
             local pname = Dentry:create(vfs.rootfs, prefix .. program.name)
             local pversion = Dentry:create(pname, program.version)
             if program.filelist ~= nil then
-                pversion:populate(program.filelist, ns)
+                pversion:populate(program.filelist, program.namespace)
             end
         end
     end
@@ -220,13 +220,17 @@ end
 local python2 = {"/System/Aliens/PIP"}
 add_python_namespaces(python2, "/System/Aliens/PIP/lib/python2*")
 add_python_namespaces(python2, "/Programs/Python/2.*/lib/python2*")
-mknamespace(python2, "PIP:")
+mknamespace(pip, python2, "PIP:")
 
 -- Python3
 local python3 = {"/System/Aliens/PIP"}
 add_python_namespaces(python3, "/System/Aliens/PIP/lib/python3*")
 add_python_namespaces(python3, "/Programs/Python/3.*/lib/python3*")
--- mknamespace(python3, "PIP3:")
+-- mknamespace(pip, python3, "PIP3:")
+
+-- Lua
+local luans = {"/System/Aliens/LuaRocks"}
+mknamespace(lua, luans, "LuaRocks:")
 
 local argv = {"AlienVFS", select(1, ...)}
 flu.main(argv, vfs)

@@ -44,6 +44,7 @@ local pip = {
             end
             f:close()
         end
+        program.namespace = self.pip_dir
         return program
     end,
 
@@ -79,6 +80,7 @@ local pip = {
             end
             f:close()
         end
+        program.namespace = self.pip_dir
         return program
     end,
 
