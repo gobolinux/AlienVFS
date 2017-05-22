@@ -66,8 +66,8 @@ local cpan = {
             for line in f:lines() do
                 table.insert(filelist, line:sub(self.cpan_dir:len()+2))
             end
+            f:close()
         end
-        f:close()
         return filelist
     end,
 
