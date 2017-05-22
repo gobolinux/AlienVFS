@@ -1,0 +1,246 @@
+#!/usr/bin/lua
+
+-- AlienVFS: a read-only virtual file system for programming language package managers
+-- Written by Lucas C. Villa Real <lucasvr@gobolinux.org>
+-- Released under the GNU GPL version 2
+
+local flu = require "flu"
+local pip = require "PIP"
+local posix = require "posix"
+local glob = require "posix.glob"
+local stat = require "posix.sys.stat"
+
+
+-- Basic operations on paths
+
+Path = {}
+Path.__index = Path
+
+function Path:split(path, istart, iend)
+    local parts = {}
+    for name in string.gmatch(path, "[^/]+") do
+		table.insert(parts, name)
+    end
+    if istart and iend then
+        return {table.unpack(parts, istart, iend)}
+    end
+    return parts
+end
+
+function Path:dentry(rootfs, path)
+    return rootfs:lookup(path)
+end
+
+
+-- Basic operations on dentries
+
+Dentry = {}
+Dentry.__index = Dentry
+
+function Dentry:create(parent, name, namespace)
+    if parent ~= nil and parent.children[name] ~= nil then
+        return parent.children[name]
+    else
+        local dentry = {}
+        setmetatable(dentry, Dentry)
+        dentry.namespace = namespace
+        dentry.name = name
+        dentry.parent = parent
+        dentry.children = {}
+        if parent ~= nil then
+            parent.children[name] = dentry
+        end
+        return dentry
+    end
+end
+
+function Dentry:realpath()
+    local dpath = {}
+    local dentry = self
+    while dentry ~= nil do
+        if dentry.namespace == nil then break end
+        table.insert(dpath, 1, dentry.name)
+        dentry = dentry.parent
+    end
+    table.insert(dpath, 1, self.namespace)
+    return table.concat(dpath, "/")
+end
+
+function Dentry:lookup(path)
+    local p = Path
+    local dentry = self
+    if type(path) == "string" then
+        for _,name in ipairs(p:split(path)) do
+            dentry = dentry.children[name]
+            if dentry == nil then break end
+        end
+    elseif type(path) == "table" then
+        for _,name in ipairs(path) do
+            dentry = dentry.children[name]
+            if dentry == nil then break end
+        end
+    end
+    return dentry
+end
+
+function Dentry:populate(filelist, namespace)
+    local p = Path
+    for _,path in pairs(filelist) do
+        for i,name in ipairs(p:split(path)) do
+            if i == 1 then
+                Dentry:create(self, name, namespace)
+            else
+                parent = self:lookup(p:split(path, 1, i-1))
+                Dentry:create(parent, name, namespace)
+            end
+        end
+    end
+end
+
+function Dentry:getAttributes()
+    local path = self:realpath()
+    if path:len() == 0 then path = "/" end
+    local attrs = stat.lstat(path)
+    return {
+        dev          = attrs.st_dev,
+        ino          = attrs.st_ino,
+        mode         = self:makeMode(attrs),
+        nlink        = attrs.st_nlink,
+        uid          = attrs.st_uid,
+        gid          = attrs.st_gid,
+        rdev         = attrs.st_rdev,
+        access       = attrs.st_atime,
+        modification = attrs.st_mtime,
+        change       = attrs.st_ctime,
+        size         = attrs.st_size,
+        blocks       = attrs.st_blocks,
+        blksize      = attrs.st_blksize,
+    }
+end
+
+function Dentry:makeMode(attrs)
+    local set = {}
+    if stat.S_ISBLK(attrs.st_mode)  ~= 0 then set["blk"]  = true end
+    if stat.S_ISCHR(attrs.st_mode)  ~= 0 then set["chr"]  = true end
+    if stat.S_ISFIFO(attrs.st_mode) ~= 0 then set["fifo"] = true end
+    if stat.S_ISREG(attrs.st_mode)  ~= 0 then set["reg"]  = true end
+    if stat.S_ISDIR(attrs.st_mode)  ~= 0 then set["dir"]  = true end
+    if stat.S_ISLNK(attrs.st_mode)  ~= 0 then set["lnk"]  = true end
+    if stat.S_ISSOCK(attrs.st_mode) ~= 0 then set["sock"] = true end
+    if stat.S_IRUSR & attrs.st_mode ~= 0 then set["rusr"] = true end
+    if stat.S_IWUSR & attrs.st_mode ~= 0 then set["wusr"] = true end
+    if stat.S_IXUSR & attrs.st_mode ~= 0 then set["xusr"] = true end
+    if stat.S_IRGRP & attrs.st_mode ~= 0 then set["rusr"] = true end
+    if stat.S_IWGRP & attrs.st_mode ~= 0 then set["wusr"] = true end
+    if stat.S_IXGRP & attrs.st_mode ~= 0 then set["xusr"] = true end
+    if stat.S_IROTH & attrs.st_mode ~= 0 then set["roth"] = true end
+    if stat.S_IWOTH & attrs.st_mode ~= 0 then set["woth"] = true end
+    if stat.S_IXOTH & attrs.st_mode ~= 0 then set["xoth"] = true end
+    if stat.S_ISUID & attrs.st_mode ~= 0 then set["suid"] = true end
+    if stat.S_ISGID & attrs.st_mode ~= 0 then set["sgid"] = true end
+    return set
+end
+
+
+-- Virtual file system methods
+
+local vfs = {}
+vfs.descriptors = {}
+vfs.rootfs = Dentry:create(nil, "/")
+
+function vfs.getattr(path, stat)
+    if path == "/" then
+        return vfs.rootfs:getAttributes()
+    else
+        local dentry = Path:dentry(vfs.rootfs, path)
+        if dentry ~= nil then
+            return dentry:getAttributes()
+        end
+    end
+    error(flu.errno.ENOENT)
+end
+
+function vfs.readdir(path, filler, fi)
+    local dentry = Path:dentry(vfs.rootfs, path)
+    filler(".")
+    filler("..")
+    for name,dentry in pairs(dentry.children) do
+        filler(name)
+    end
+end
+
+function vfs.open(path, fi)
+    -- operates on the real file system
+    local dentry = Path:dentry(vfs.rootfs, path)
+    local flags = posix.O_RDONLY
+    if fi.flags.wronly then
+        flags = posix.O_WRONLY
+    elseif fi.flags.rdwr then
+        flags = posix.O_RDWR
+    end
+    fi.fh = posix.open(dentry:realpath(), flags)
+    vfs.descriptors[fi.fh] = dentry
+end
+
+function vfs.read(path, size, offset, fi)
+    posix.lseek(fi.fh, math.floor(offset), posix.SEEK_SET)
+    return posix.read(fi.fh, size)
+end
+
+function vfs.release(path, fi)
+    vfs.descriptors[fi.fh] = nil
+end
+
+
+-- Main operation
+
+function mknamespace(namespaces, prefix)
+    for _,ns in pairs(namespaces) do
+        local pip_programs = pip:parse(ns)
+        for _,program in pairs(pip_programs) do
+            local pname = Dentry:create(vfs.rootfs, prefix .. program.name)
+            local pversion = Dentry:create(pname, program.version)
+            if program.filelist ~= nil then
+                pversion:populate(program.filelist, ns)
+            end
+        end
+    end
+end
+
+-- Python2
+local namespaces = {"/System/Aliens/PIP"}
+local alt = glob.glob("/System/Aliens/PIP/lib/python2*")
+if alt ~= nil then
+    for _,ns in pairs(alt) do
+        table.insert(namespaces, ns .. "/site-packages")
+    end
+end
+local alt = glob.glob("/Programs/Python/2.*/lib/python2*")
+if alt ~= nil then
+    for _,ns in pairs(alt) do
+        table.insert(namespaces, ns .. "/site-packages")
+    end
+end
+mknamespace(namespaces, "PIP:")
+
+-- Python3
+local namespaces = {"/System/Aliens/PIP"}
+local alt = glob.glob("/System/Aliens/PIP/lib/python3*")
+if alt ~= nil then
+    for _,ns in pairs(alt) do
+        table.insert(namespaces, ns .. "/site-packages")
+    end
+end
+local alt = glob.glob("/Programs/Python/3.*/lib/python3*")
+if alt ~= nil then
+    for _,ns in pairs(alt) do
+        table.insert(namespaces, ns .. "/site-packages")
+    end
+end
+-- mknamespace(namespaces, "PIP3:")
+
+
+local argv = {"AlienVFS", select(1, ...)}
+flu.main(argv, vfs)
+
+-- vim: ts=4 sts=4 sw=4 expandtab
