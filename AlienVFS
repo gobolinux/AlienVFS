@@ -5,13 +5,14 @@
 -- Released under the GNU GPL version 2
 
 local flu = require "flu"
-local pip = require "gobo.alienvfs.pip"
-local lua = require "gobo.alienvfs.lua"
-local cpan = require "gobo.alienvfs.cpan"
-local rubygems = require "gobo.alienvfs.rubygems"
 local posix = require "posix"
 local glob = require "posix.glob"
 local stat = require "posix.sys.stat"
+
+local pip = require "gobo.alienvfs.pip"
+local cpan = require "gobo.alienvfs.cpan"
+local lua = require "gobo.alienvfs.luarocks"
+local rubygems = require "gobo.alienvfs.rubygems"
 
 
 -- Basic operations on paths
