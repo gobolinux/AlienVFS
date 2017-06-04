@@ -14,14 +14,15 @@ programming language package managers under a centralized directory.
 dependencies = {
    "flu",
    "luaposix",
-   "lunajson"
+   "lunajson",
+   "inotify"
 }
 build = {
    type = "builtin",
    modules = {
-      ["gobo.alienvfs.pip"] = "gobo/alienvfs/pip.lua"
-      ["gobo.alienvfs.cpan"] = "gobo/alienvfs/cpan.lua"
-      ["gobo.alienvfs.luarocks"] = "gobo/alienvfs/luarocks.lua"
+      ["gobo.alienvfs.pip"] = "gobo/alienvfs/pip.lua",
+      ["gobo.alienvfs.cpan"] = "gobo/alienvfs/cpan.lua",
+      ["gobo.alienvfs.luarocks"] = "gobo/alienvfs/luarocks.lua",
       ["gobo.alienvfs.rubygems"] = "gobo/alienvfs/rubygems.lua"
    },
    install = {
