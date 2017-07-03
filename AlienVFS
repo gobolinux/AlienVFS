@@ -9,6 +9,7 @@ local flu = require "flu"
 local posix = require "posix"
 local glob = require "posix.glob"
 local stat = require "posix.sys.stat"
+local lanes = require "lanes".configure({with_timers=nil, demote_full_userdata=true})
 
 local pip = require "gobo.alienvfs.pip"
 local cpan = require "gobo.alienvfs.cpan"
@@ -199,6 +200,39 @@ end
 
 -- Main operation
 
+local function add_filesystem_watches(dirs)
+    local inotify = require "inotify"
+    local handle = nil
+    if dirs ~= nil then
+        handle = inotify.init()
+        for _,path in pairs(dirs) do
+            local wd = handle:addwatch(path,
+                inotify.IN_CREATE,
+                inotify.IN_DELETE,
+                inotify.IN_CLOSE_WRITE,
+                inotify.IN_MOVED_FROM,
+                inotify.IN_MOVE)
+            print("adding watch to " .. path)
+        end
+    end
+    return handle
+end
+
+local monitor_filesystem_handle = lanes.gen("*", function(dirs)
+    local handle = add_filesystem_watches(dirs)
+    print("Waiting for events")
+    while true do
+        local events = handle:read()
+        for _, ev in ipairs(events) do
+            -- Error: cannot access Path from this lane
+            if Path:dentry(vfs.rootfs, ev.name) == nil then
+                print(inspect(ev))
+                Dentry:create(vfs.rootfs, ev.name)
+            end
+        end
+    end
+end)
+
 local function mknamespace(backend, prefix, namespaces)
     for _,ns in pairs(namespaces) do
         for _,program in pairs(backend:parse(ns)) do
@@ -209,6 +243,7 @@ local function mknamespace(backend, prefix, namespaces)
            end
         end
     end
+    monitor_filesystem_handle(namespaces)
 end
 
 local function scan_python_dirs(root)
@@ -222,22 +257,39 @@ local function scan_python_dirs(root)
     return table.unpack(dirs)
 end
 
+local function scan_dirs(root, suffixdir)
+    local dirs = {}
+    local alt = glob.glob(root)
+    if alt then
+        for _, ns in pairs(alt) do
+            if suffixdir ~= nil then
+                table.insert(dirs, ns .. suffixdir)
+            else
+                table.insert(dirs, ns)
+            end
+        end
+    end
+    return table.unpack(dirs)
+end
+
 -- Python2
 mknamespace(pip, "PIP:", {
     "/System/Aliens/PIP",
-    scan_python_dirs("/System/Aliens/PIP/lib/python2*"),
-    scan_python_dirs("/Programs/Python/2.*/lib/python2*")
+    scan_dirs("/System/Aliens/PIP/lib/python2*", "/site-packages"),
+    scan_dirs("/Programs/Python/2.*/lib/python2*", "/site-packages")
 })
 
---[[ -- Python3
+-- Python3
 mknamespace(pip, "PIP3:", {
-    "/System/Aliens/PIP"
-    scan_python_dirs("/System/Aliens/PIP/lib/python3*"),
-    scan_python_dirs("/Programs/Python/3.*/lib/python3*")
+    "/System/Aliens/PIP",
+    scan_dirs("/System/Aliens/PIP/lib/python3*", "/site-packages"),
+    scan_dirs("/Programs/Python/3.*/lib/python3*", "/site-packages")
 }) --]]
 
 -- Lua
-mknamespace(lua, "LuaRocks:", {"/System/Aliens/LuaRocks"})
+mknamespace(lua, "LuaRocks:", {
+    scan_dirs("/System/Aliens/LuaRocks/lib/luarocks/rocks*", nil)
+})
 
 -- CPAN
 mknamespace(cpan, "CPAN:", {"/System/Aliens/CPAN"})
@@ -245,6 +297,7 @@ mknamespace(cpan, "CPAN:", {"/System/Aliens/CPAN"})
 -- RubyGems
 mknamespace(rubygems, "RubyGems:", {"/System/Aliens/RubyGems"})
 
+-- Run FLU main loop
 local argv = {"AlienVFS", "-oallow_other", select(1, ...)}
 flu.main(argv, vfs)
 

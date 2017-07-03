@@ -15,7 +15,8 @@ dependencies = {
    "flu",
    "luaposix",
    "lunajson",
-   "inotify"
+   "inotify",
+   "lanes"
 }
 build = {
    type = "builtin",
