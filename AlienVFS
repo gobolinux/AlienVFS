@@ -167,35 +167,39 @@ local function add_filesystem_watches(dirs)
     return handle
 end
 
-local monitor_filesystem_handle = lanes.gen("*", function(dirs)
+local sent = 0
+local monitor_filesystem_handle = lanes.gen("*", function(ch, dirs)
     local lanes = require "lanes"
     local posix = require "posix"
     local handle = add_filesystem_watches(dirs)
-    local ch = lanes.linda()
     print("Waiting for events")
     while true do
         local events = handle:read()
         for _, ev in ipairs(events) do
             print(inspect(handle))
             print(inspect(ev))
-            print(ch:set("inotify_event", ev.name))
-            print(ch:send("inotify_event", ev.name))
+            --print(ch:set("inotify_event", ev.name))
+            print(ch:send("inotify_event", ev))
+            sent = sent + 1
+            print("EVENTS SENT: ", sent)
             --posix.sleep(1)
         end
     end
 end)
 
+local received = 0
 local function check_filesystem_watches(ch)
     while true do
-        local events = ch:get("inotify_event")
-        if events == nil then
+        local key, value = ch:receive(0, "inotify_event", 1)
+        if not key then
             print("No events caught")
             break
         end
-        local key, value = ch:receive(0, ch.batched, "inotify_event", 1, 32)
         print("Received events from inotify")
         print(key)
-        print(value)
+        print(inspect(value))
+        received = received + 1
+        print("EVENTS RECEIVED: ", received)
     end
 end
 
@@ -263,7 +267,7 @@ local function mknamespace(backend, prefix, namespaces)
            end
         end
     end
-    monitor_filesystem_handle(namespaces)
+    monitor_filesystem_handle(vfs.ch, namespaces)
 end
 
 local function scan_python_dirs(root)
