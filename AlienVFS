@@ -9,7 +9,7 @@ local flu = require "flu"
 local posix = require "posix"
 local glob = require "posix.glob"
 local stat = require "posix.sys.stat"
-local lanes = require "lanes".configure({with_timers=nil, demote_full_userdata=true})
+local lanes = require "lanes".configure({track_lanes=true})
 
 local pip = require "gobo.alienvfs.pip"
 local cpan = require "gobo.alienvfs.cpan"
@@ -147,10 +147,62 @@ function Dentry:makeMode(attrs)
     return set
 end
 
+-- Filesystem notification mechanism
+
+local function add_filesystem_watches(dirs)
+    local inotify = require "inotify"
+    local handle = nil
+    if dirs ~= nil then
+        handle = inotify.init()
+        for _,path in pairs(dirs) do
+            local wd = handle:addwatch(path,
+                inotify.IN_CREATE,
+                inotify.IN_DELETE,
+                inotify.IN_CLOSE_WRITE,
+                inotify.IN_MOVED_FROM,
+                inotify.IN_MOVE)
+            print("adding watch to " .. path)
+        end
+    end
+    return handle
+end
+
+local monitor_filesystem_handle = lanes.gen("*", function(dirs)
+    local lanes = require "lanes"
+    local posix = require "posix"
+    local handle = add_filesystem_watches(dirs)
+    local ch = lanes.linda()
+    print("Waiting for events")
+    while true do
+        local events = handle:read()
+        for _, ev in ipairs(events) do
+            print(inspect(handle))
+            print(inspect(ev))
+            print(ch:set("inotify_event", ev.name))
+            print(ch:send("inotify_event", ev.name))
+            --posix.sleep(1)
+        end
+    end
+end)
+
+local function check_filesystem_watches(ch)
+    while true do
+        local events = ch:get("inotify_event")
+        if events == nil then
+            print("No events caught")
+            break
+        end
+        local key, value = ch:receive(0, ch.batched, "inotify_event", 1, 32)
+        print("Received events from inotify")
+        print(key)
+        print(value)
+    end
+end
 
 -- Virtual file system methods
 
 local vfs = {}
+vfs.ch = lanes.linda()
 vfs.descriptors = {}
 vfs.rootfs = Dentry:create(nil, "/")
 
@@ -167,6 +219,7 @@ function vfs.getattr(path, stat)
 end
 
 function vfs.readdir(path, filler, fi)
+    check_filesystem_watches(vfs.ch)
     local dentry = Path:dentry(vfs.rootfs, path)
     filler(".")
     filler("..")
@@ -199,39 +252,6 @@ end
 
 
 -- Main operation
-
-local function add_filesystem_watches(dirs)
-    local inotify = require "inotify"
-    local handle = nil
-    if dirs ~= nil then
-        handle = inotify.init()
-        for _,path in pairs(dirs) do
-            local wd = handle:addwatch(path,
-                inotify.IN_CREATE,
-                inotify.IN_DELETE,
-                inotify.IN_CLOSE_WRITE,
-                inotify.IN_MOVED_FROM,
-                inotify.IN_MOVE)
-            print("adding watch to " .. path)
-        end
-    end
-    return handle
-end
-
-local monitor_filesystem_handle = lanes.gen("*", function(dirs)
-    local handle = add_filesystem_watches(dirs)
-    print("Waiting for events")
-    while true do
-        local events = handle:read()
-        for _, ev in ipairs(events) do
-            -- Error: cannot access Path from this lane
-            if Path:dentry(vfs.rootfs, ev.name) == nil then
-                print(inspect(ev))
-                Dentry:create(vfs.rootfs, ev.name)
-            end
-        end
-    end
-end)
 
 local function mknamespace(backend, prefix, namespaces)
     for _,ns in pairs(namespaces) do
