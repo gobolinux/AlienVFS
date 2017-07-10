@@ -346,7 +346,6 @@ namespace_create(pip, "PIP:", {
 
 -- Python3
 namespace_create(pip, "PIP3:", {
-    "/System/Aliens/PIP",
     scan_dirs("/System/Aliens/PIP/lib/python3*/site-packages"),
     scan_dirs("/Programs/Python/3.*/lib/python3*/site-packages")
 })
