@@ -156,30 +156,22 @@ end
 
 -- Filesystem notification mechanism
 
-local function add_filesystem_watches(dirs)
-    local inotify = require "inotify"
-    local handle = nil
-    if dirs ~= nil then
-        handle = inotify.init()
-        for _,path in pairs(dirs) do
-            local wd = handle:addwatch(path,
-                inotify.IN_CREATE,
-                inotify.IN_DELETE,
-                inotify.IN_CLOSE_WRITE,
-                inotify.IN_MOVED_FROM,
-                inotify.IN_MOVE)
-            print("adding watch to " .. path)
-        end
-    end
-    return handle
-end
-
-local monitor_filesystem_handle = lanes.gen("*", function(ch, prefix, dirs)
+local inotify_monitor = lanes.gen("*", function(ch, prefix, dirs)
     local lanes = require "lanes"
     local posix = require "posix"
+    local inotify = require "inotify"
 
     -- XXX catches changes to programs, but not to individual versions
-    local handle = add_filesystem_watches(dirs)
+    local handle = inotify.init()
+    for _,path in pairs(dirs) do
+        local wd = handle:addwatch(path,
+        inotify.IN_CREATE,
+        inotify.IN_DELETE,
+        inotify.IN_CLOSE_WRITE,
+        inotify.IN_MOVED_FROM,
+        inotify.IN_MOVE)
+        print("Added watch to " .. path)
+    end
     while true do
         local events = handle:read()
         for _, ev in ipairs(events) do
@@ -203,7 +195,6 @@ local function check_filesystem_watches(ch)
 
         local event_type, event_idx = {'CREATE', 'DELETE', nil}, 3
         local event, prefix, watchdir = value[1], value[2], value[3]
-        print("Received event(s) from inotify on " .. watchdir .. ":")
 
         if bit_set(event, inotify.IN_CREATE) or bit_set(event, inotify.IN_MOVED_TO) then
             print(" * CREATED/MOVED_IN/MODIFIED " .. event.name)
@@ -290,12 +281,14 @@ local function namespace_add_program(prefix, program)
 end
 
 local function namespace_create(backend, prefix, namespaces)
+    local sanitized_namespaces = {}
     for _,ns in pairs(namespaces) do
+        table.insert(sanitized_namespaces, ns)
         for _,program in pairs(backend:parse(ns)) do
             namespace_add_program(prefix, program)
         end
     end
-    monitor_filesystem_handle(vfs.ch, prefix, namespaces)
+    inotify_monitor(vfs.ch, prefix, sanitized_namespaces)
 end
 
 --
@@ -333,8 +326,8 @@ local function scan_dirs(pattern)
         for _, dirname in pairs(matches) do
             table.insert(dirs, dirname)
         end
+        return table.unpack(dirs)
     end
-    return table.unpack(dirs)
 end
 
 -- Python2
