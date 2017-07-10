@@ -9,27 +9,54 @@ local lunajson = require "lunajson"
 local pip = {
     pip_dir = nil,
 
-    readNameVersion = function(self, f)
+    parse = function(self, pip_dir)
+        local programs = {}
+        self.pip_dir = pip_dir
+        for file in lfs.dir(pip_dir) do
+            if lfs.attributes(pip_dir.."/"..file, "mode") == "directory" then
+                local fname = pip_dir.."/"..file
+                if string.find(fname, "egg-info", 1, true) ~= nil then
+                    table.insert(programs, self:_parseEgg(fname))
+
+                elseif string.find(fname, "dist-info", 1, true) ~= nil then
+                    table.insert(programs, self:_parseDistInfo(fname))
+                end
+            end
+        end
+        return programs
+    end,
+
+    contents = function(self, directory, programname)
+        -- TODO
+        return {}
+    end,
+
+    valid = function(self, path)
+        -- TODO
+        return true
+    end,
+
+    _readNameVersion = function(self, f)
         local name = nil
         local version = nil
         for line in f:lines() do
             local name_ = line:find("Name: ")
             local version_ = line:find("Version: ")
             if name_ ~= nil then
-                name = self:getValue(line)
+                name = self:_getValue(line)
             end
             if version_ ~= nil then
-                version = self:getValue(line)
+                version = self:_getValue(line)
             end
         end
         return name, version
     end,
 
-    parseEgg = function(self, egg_dir)
+    _parseEgg = function(self, egg_dir)
         local program = {}
         local f = io.open(egg_dir.."/PKG-INFO")
         if f ~= nil then
-            program.name, program.version = self:readNameVersion(f)
+            program.name, program.version = self:_readNameVersion(f)
             f:close()
         end
         f = io.open(egg_dir.."/installed-files.txt")
@@ -48,11 +75,11 @@ local pip = {
         return program
     end,
 
-    getValue = function(self, line)
+    _getValue = function(self, line)
         return line:sub(line:len()+2 - line:reverse():find(" "))
     end,
 
-    parseDistInfo = function(self, dist_dir)
+    _parseDistInfo = function(self, dist_dir)
         local program = {}
         local f = io.open(dist_dir.."/metadata.json")
         if f ~= nil then
@@ -64,7 +91,7 @@ local pip = {
         else
             f = io.open(dist_dir.."/METADATA")
             if f ~= nil then
-                program.name, program.version = self:readNameVersion(f)
+                program.name, program.version = self:_readNameVersion(f)
                 f:close()
             end
         end
@@ -82,23 +109,6 @@ local pip = {
         end
         program.namespace = self.pip_dir
         return program
-    end,
-
-    parse = function(self, pip_dir)
-        local programs = {}
-        self.pip_dir = pip_dir
-        for file in lfs.dir(pip_dir) do
-            if lfs.attributes(pip_dir.."/"..file, "mode") == "directory" then
-                local fname = pip_dir.."/"..file
-                if string.find(fname, "egg-info", 1, true) ~= nil then
-                    table.insert(programs, self:parseEgg(fname))
-
-                elseif string.find(fname, "dist-info", 1, true) ~= nil then
-                    table.insert(programs, self:parseDistInfo(fname))
-                end
-            end
-        end
-        return programs
     end
 }
 

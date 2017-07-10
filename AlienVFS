@@ -5,6 +5,7 @@
 -- Released under the GNU GPL version 2
 
 local inspect = require "inspect"
+local inotify = require "inotify"
 local flu = require "flu"
 local posix = require "posix"
 local glob = require "posix.glob"
@@ -57,6 +58,12 @@ function Dentry:create(parent, name, namespace)
             parent.children[name] = dentry
         end
         return dentry
+    end
+end
+
+function Dentry:remove()
+    if self.parent ~= nil then
+        self.parent.children[self.name] = nil
     end
 end
 
@@ -167,39 +174,56 @@ local function add_filesystem_watches(dirs)
     return handle
 end
 
-local sent = 0
-local monitor_filesystem_handle = lanes.gen("*", function(ch, dirs)
+local monitor_filesystem_handle = lanes.gen("*", function(ch, prefix, dirs)
     local lanes = require "lanes"
     local posix = require "posix"
+
+    -- XXX catches changes to programs, but not to individual versions
     local handle = add_filesystem_watches(dirs)
-    print("Waiting for events")
     while true do
         local events = handle:read()
         for _, ev in ipairs(events) do
-            print(inspect(handle))
-            print(inspect(ev))
-            --print(ch:set("inotify_event", ev.name))
-            print(ch:send("inotify_event", ev))
-            sent = sent + 1
-            print("EVENTS SENT: ", sent)
-            --posix.sleep(1)
+            ch:send("inotify_event", {ev, prefix, dirs[ev.wd]})
         end
     end
 end)
 
-local received = 0
+local namespace_update = nil
+
+local function bit_set(event, bit)
+    return event.mask & bit == bit
+end
+
 local function check_filesystem_watches(ch)
     while true do
         local key, value = ch:receive(0, "inotify_event", 1)
         if not key then
-            print("No events caught")
             break
         end
-        print("Received events from inotify")
-        print(key)
-        print(inspect(value))
-        received = received + 1
-        print("EVENTS RECEIVED: ", received)
+
+        local event_type, event_idx = {'CREATE', 'DELETE', nil}, 3
+        local event, prefix, watchdir = value[1], value[2], value[3]
+        print("Received event(s) from inotify on " .. watchdir .. ":")
+
+        if bit_set(event, inotify.IN_CREATE) or bit_set(event, inotify.IN_MOVED_TO) then
+            print(" * CREATED/MOVED_IN/MODIFIED " .. event.name)
+            event_idx = 1
+        elseif bit_set(event, inotify.IN_DELETE) or bit_set(event, inotify.IN_MOVED_FROM) then
+            print(" * DELETED/MOVED_OUT " .. event.name)
+            event_idx = 2
+        end
+
+        if event_type[event_idx] ~= nil then
+            if prefix == "PIP:" or prefix == "PIP3:" then
+                namespace_update(pip, prefix, watchdir, event.name, event_type[event_idx])
+            elseif prefix == "LuaRocks:" then
+                namespace_update(lua, prefix, watchdir, event.name, event_type[event_idx])
+            elseif prefix == "CPAN:" then
+                namespace_update(cpan, prefix, watchdir, event.name, event_type[event_idx])
+            elseif prefix == "RubyGems:" then
+                namespace_update(rubygems, prefix, watchdir, event.name, event_type[event_idx])
+            end
+        end
     end
 end
 
@@ -257,28 +281,49 @@ end
 
 -- Main operation
 
-local function mknamespace(backend, prefix, namespaces)
-    for _,ns in pairs(namespaces) do
-        for _,program in pairs(backend:parse(ns)) do
-           local pname = Dentry:create(vfs.rootfs, prefix .. program.name)
-           local pversion = Dentry:create(pname, program.version)
-           if program.filelist ~= nil then
-               pversion:populate(program.filelist, program.namespace)
-           end
-        end
+local function namespace_add_program(prefix, program)
+    local pname = Dentry:create(vfs.rootfs, prefix .. program.name)
+    local pversion = Dentry:create(pname, program.version)
+    if program.filelist ~= nil then
+        pversion:populate(program.filelist, program.namespace)
     end
-    monitor_filesystem_handle(vfs.ch, namespaces)
 end
 
-local function scan_python_dirs(root)
-    local dirs = {}
-    local alt = glob.glob(root)
-    if alt then
-        for _, ns in pairs(alt) do
-            table.insert(dirs, ns .. "/site-packages")
+local function namespace_create(backend, prefix, namespaces)
+    for _,ns in pairs(namespaces) do
+        for _,program in pairs(backend:parse(ns)) do
+            namespace_add_program(prefix, program)
         end
     end
-    return table.unpack(dirs)
+    monitor_filesystem_handle(vfs.ch, prefix, namespaces)
+end
+
+--
+-- Update namespace upon a DELETE or CREATE event
+-- @backend: pip, lua, cpan, rubygems
+-- @prefix: "PIP:", "PIP3:", "LuaRocks:", "CPAN:", "RubyGems:"
+-- @watchdir: /System/Aliens/PIP, /System/Aliens/LuaRocks, ...
+-- @path: foo, bar, anotherdirname, ...
+-- @event_type: 'CREATE', 'DELETE'
+--
+namespace_update = function(backend, prefix, watchdir, path, event_type)
+    if not backend:valid(path) then
+        return
+    end
+    local fullname = "/" .. prefix .. path
+    if event_type == "DELETE" then
+        local dentry = Path:dentry(vfs.rootfs, fullname)
+        if dentry ~= nil then
+            dentry:remove()
+        end
+    elseif event_type == "CREATE" then
+        local dentry = Path:dentry(vfs.rootfs, fullname)
+        if dentry == nil then
+            for _,program in pairs(backend:contents(watchdir, path)) do
+                namespace_add_program(prefix, program)
+            end
+        end
+    end
 end
 
 local function scan_dirs(root, suffixdir)
@@ -297,29 +342,29 @@ local function scan_dirs(root, suffixdir)
 end
 
 -- Python2
-mknamespace(pip, "PIP:", {
+namespace_create(pip, "PIP:", {
     "/System/Aliens/PIP",
     scan_dirs("/System/Aliens/PIP/lib/python2*", "/site-packages"),
     scan_dirs("/Programs/Python/2.*/lib/python2*", "/site-packages")
 })
 
 -- Python3
-mknamespace(pip, "PIP3:", {
+namespace_create(pip, "PIP3:", {
     "/System/Aliens/PIP",
     scan_dirs("/System/Aliens/PIP/lib/python3*", "/site-packages"),
     scan_dirs("/Programs/Python/3.*/lib/python3*", "/site-packages")
-}) --]]
+})
 
 -- Lua
-mknamespace(lua, "LuaRocks:", {
+namespace_create(lua, "LuaRocks:", {
     scan_dirs("/System/Aliens/LuaRocks/lib/luarocks/rocks*", nil)
 })
 
 -- CPAN
-mknamespace(cpan, "CPAN:", {"/System/Aliens/CPAN"})
+namespace_create(cpan, "CPAN:", {"/System/Aliens/CPAN"})
 
 -- RubyGems
-mknamespace(rubygems, "RubyGems:", {"/System/Aliens/RubyGems"})
+namespace_create(rubygems, "RubyGems:", {"/System/Aliens/RubyGems"})
 
 -- Run FLU main loop
 local argv = {"AlienVFS", "-oallow_other", select(1, ...)}

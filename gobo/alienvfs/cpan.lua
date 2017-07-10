@@ -9,7 +9,31 @@ local cpan = {
     packlist_dir = nil,
     perldoc_output = {},
 
-    getModules = function(self)
+    parse = function(self, cpan_dir)
+        self.cpan_dir = cpan_dir
+        local programs = {}
+        for _,module in pairs(self:_getModules()) do
+            local program = {}
+            program.name = module
+            program.version = self:_getModuleInfo(module)
+            program.namespace = self.cpan_dir
+            program.filelist = self:_parsePackList(module)
+            table.insert(programs, program)
+        end
+        return programs
+    end,
+
+    contents = function(self, directory, programname)
+        -- TODO
+        return {}
+    end,
+
+    valid = function(self, path)
+        -- TODO
+        return true
+    end,
+
+    _getModules = function(self)
         local modules = {}
         local f = io.popen("perldoc -t perllocal")
         for line in f:lines() do
@@ -23,7 +47,7 @@ local cpan = {
         return modules
     end,
 
-    getModuleInfo = function(self, module)
+    _getModuleInfo = function(self, module)
         local watch = false
         local version = nil
         local namespace = nil
@@ -48,7 +72,7 @@ local cpan = {
         return version, namespace
     end,
 
-    packListDir = function(self, module)
+    _packListDir = function(self, module)
         if self.packlist_dir == nil then
             local arch = io.popen("uname -m"):read("*l")
             for _,dir in pairs(glob.glob(self.cpan_dir .. "/lib/perl*/" .. arch .. "*/auto")) do
@@ -58,9 +82,9 @@ local cpan = {
         return self.packlist_dir
     end,
 
-    parsePackList = function(self, module)
+    _parsePackList = function(self, module)
         local filelist = {}
-        local packlist = self:packListDir() .. "/" .. string.gsub(module, "::", "/") .. "/.packlist"
+        local packlist = self:_packListDir() .. "/" .. string.gsub(module, "::", "/") .. "/.packlist"
         local f = io.open(packlist)
         if f ~= nil then
             for line in f:lines() do
@@ -69,20 +93,6 @@ local cpan = {
             f:close()
         end
         return filelist
-    end,
-
-    parse = function(self, cpan_dir)
-        self.cpan_dir = cpan_dir
-        local programs = {}
-        for _,module in pairs(self:getModules()) do
-            local program = {}
-            program.name = module
-            program.version = self:getModuleInfo(module)
-            program.namespace = self.cpan_dir
-            program.filelist = self:parsePackList(module)
-            table.insert(programs, program)
-        end
-        return programs
     end
 }
 
