@@ -367,7 +367,7 @@ namespace_create(cpan, "CPAN:", {"/System/Aliens/CPAN"})
 namespace_create(rubygems, "RubyGems:", {"/System/Aliens/RubyGems"})
 
 -- Run FLU main loop
-local argv = {"AlienVFS", "-oallow_other", select(1, ...)}
+local argv = {"AlienVFS", "-oallow_other", "-oauto_unmount", select(1, ...)}
 flu.main(argv, vfs)
 
 -- vim: ts=4 sts=4 sw=4 expandtab
