@@ -326,16 +326,12 @@ namespace_update = function(backend, prefix, watchdir, path, event_type)
     end
 end
 
-local function scan_dirs(root, suffixdir)
+local function scan_dirs(pattern)
     local dirs = {}
-    local alt = glob.glob(root)
-    if alt then
-        for _, ns in pairs(alt) do
-            if suffixdir ~= nil then
-                table.insert(dirs, ns .. suffixdir)
-            else
-                table.insert(dirs, ns)
-            end
+    local matches = glob.glob(pattern)
+    if matches then
+        for _, dirname in pairs(matches) do
+            table.insert(dirs, dirname)
         end
     end
     return table.unpack(dirs)
@@ -344,20 +340,20 @@ end
 -- Python2
 namespace_create(pip, "PIP:", {
     "/System/Aliens/PIP",
-    scan_dirs("/System/Aliens/PIP/lib/python2*", "/site-packages"),
-    scan_dirs("/Programs/Python/2.*/lib/python2*", "/site-packages")
+    scan_dirs("/System/Aliens/PIP/lib/python2*/site-packages"),
+    scan_dirs("/Programs/Python/2.*/lib/python2*/site-packages")
 })
 
 -- Python3
 namespace_create(pip, "PIP3:", {
     "/System/Aliens/PIP",
-    scan_dirs("/System/Aliens/PIP/lib/python3*", "/site-packages"),
-    scan_dirs("/Programs/Python/3.*/lib/python3*", "/site-packages")
+    scan_dirs("/System/Aliens/PIP/lib/python3*/site-packages"),
+    scan_dirs("/Programs/Python/3.*/lib/python3*/site-packages")
 })
 
 -- Lua
 namespace_create(lua, "LuaRocks:", {
-    scan_dirs("/System/Aliens/LuaRocks/lib/luarocks/rocks*", nil)
+    scan_dirs("/System/Aliens/LuaRocks/lib/luarocks/rocks*")
 })
 
 -- CPAN
