@@ -257,16 +257,21 @@ function vfs.open(path, fi)
         flags = posix.O_RDWR
     end
     fi.fh = posix.open(dentry:realpath(), flags)
-    vfs.descriptors[fi.fh] = dentry
+    if fi.fh == nil then
+        error(flu.errno.ENOENT)
+    end
+    vfs.descriptors[math.floor(fi.fh)] = dentry
 end
 
 function vfs.read(path, size, offset, fi)
-    posix.lseek(fi.fh, math.floor(offset), posix.SEEK_SET)
-    return posix.read(fi.fh, size)
+    posix.lseek(math.floor(fi.fh), math.floor(offset), posix.SEEK_SET)
+    return posix.read(math.floor(fi.fh), size)
 end
 
 function vfs.release(path, fi)
     vfs.descriptors[fi.fh] = nil
+    posix.close(math.floor(fi.fh))
+    fi.fh = nil
 end
 
 
