@@ -8,6 +8,7 @@ local lunajson = require "lunajson"
 
 local pip = {
     pip_dir = nil,
+    programs_table = {},
 
     parse = function(self, pip_dir)
         local programs = {}
@@ -17,23 +18,55 @@ local pip = {
                 local fname = pip_dir.."/"..file
                 if string.find(fname, "egg-info", 1, true) ~= nil then
                     table.insert(programs, self:_parseEgg(fname))
-
                 elseif string.find(fname, "dist-info", 1, true) ~= nil then
                     table.insert(programs, self:_parseDistInfo(fname))
                 end
             end
         end
+        for _,entry in pairs(programs) do
+            -- Local cache
+            info = {}
+            info.path = entry.path
+            info.name = entry.name
+            info.version = entry.version
+            table.insert(self.programs_table, info)
+        end
         return programs
     end,
 
     contents = function(self, directory, programname)
-        -- TODO
-        return {}
+        local path = directory .. "/" .. programname
+        local info = posix.stat(path)
+        local programfiles = {}
+        if info ~= nil and info.type == "directory" then
+            if string.find(programname, "egg-info", 1, true) ~= nil then
+                table.insert(programfiles, self:_parseEgg(path))
+            elseif string.find(programname, "dist-info", 1, true) ~= nil then
+                table.insert(programfiles, self:_parseDistInfo(path))
+            end
+        end
+        for _,entry in pairs(programfiles) do
+            -- Local cache
+            info = {}
+            info.path = path
+            info.name = entry.name
+            info.version = entry.version
+            table.insert(self.programs_table, info)
+        end
+        return programfiles
     end,
 
     valid = function(self, path)
-        -- TODO
-        return true
+        if string.find(path, "egg-info", 1, true) ~= nil or string.find(path, "dist-info", 1, true) ~= nil then
+            return true
+        else
+            for _,info in pairs(self.programs_table) do
+                if info.name == posix.basename(path) then
+                    return true
+                end
+            end
+        end
+        return false
     end,
 
     _readNameVersion = function(self, f)
@@ -56,6 +89,7 @@ local pip = {
         local program = {}
         local f = io.open(egg_dir.."/PKG-INFO")
         if f ~= nil then
+            program.path = egg_dir
             program.name, program.version = self:_readNameVersion(f)
             f:close()
         end
@@ -85,6 +119,7 @@ local pip = {
         if f ~= nil then
             local jsonstr = f:read("*all")
             local jsondoc = lunajson.decode(jsonstr)
+            program.path = dist_dir
             program.name = jsondoc.name
             program.version = jsondoc.version
             f:close()
