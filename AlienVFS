@@ -229,6 +229,7 @@ function vfs.getattr(path, stat)
     if path == "/" then
         return vfs.rootfs:getAttributes()
     else
+        check_filesystem_watches(vfs.ch)
         local dentry = Path:dentry(vfs.rootfs, path)
         if dentry ~= nil then
             return dentry:getAttributes()
@@ -240,15 +241,18 @@ end
 function vfs.readdir(path, filler, fi)
     check_filesystem_watches(vfs.ch)
     local dentry = Path:dentry(vfs.rootfs, path)
-    filler(".")
-    filler("..")
-    for name,dentry in pairs(dentry.children) do
-        filler(name)
+    if dentry ~= nil then
+        filler(".")
+        filler("..")
+        for name,dentry in pairs(dentry.children) do
+            filler(name)
+        end
     end
 end
 
 function vfs.open(path, fi)
     -- operates on the real file system
+    check_filesystem_watches(vfs.ch)
     local dentry = Path:dentry(vfs.rootfs, path)
     local flags = posix.O_RDONLY
     if fi.flags.wronly then
