@@ -7,12 +7,12 @@ local posix = require "posix"
 local lunajson = require "lunajson"
 
 local pip = {
-    pip_dir = nil,
+    pip_dirs = {},
     programs_table = {},
 
     parse = function(self, pip_dir)
         local programs = {}
-        self.pip_dir = pip_dir
+        table.insert(self.pip_dirs, pip_dir)
         for file in lfs.dir(pip_dir) do
             if lfs.attributes(pip_dir.."/"..file, "mode") == "directory" then
                 local fname = pip_dir.."/"..file
@@ -86,6 +86,7 @@ local pip = {
     end,
 
     _parseEgg = function(self, egg_dir)
+        local this_pip_dir = self:_matchingPipDir(egg_dir)
         local program = {}
         local f = io.open(egg_dir.."/PKG-INFO")
         if f ~= nil then
@@ -100,12 +101,12 @@ local pip = {
                 local fname = egg_dir.."/"..line
                 local path = posix.realpath(fname)
                 if path ~= nil then
-                    table.insert(program.filelist, path:sub(self.pip_dir:len()+2))
+                    table.insert(program.filelist, path:sub(this_pip_dir:len()+2))
                 end
             end
             f:close()
         end
-        program.namespace = self.pip_dir
+        program.namespace = this_pip_dir
         return program
     end,
 
@@ -114,6 +115,7 @@ local pip = {
     end,
 
     _parseDistInfo = function(self, dist_dir)
+        local this_pip_dir = self:_matchingPipDir(dist_dir)
         local program = {}
         local f = io.open(dist_dir.."/metadata.json")
         if f ~= nil then
@@ -137,13 +139,23 @@ local pip = {
                 local fname = dist_dir.."/../"..line:sub(1, line:find(",")-1)
                 local path = posix.realpath(fname)
                 if path ~= nil then
-                    table.insert(program.filelist, path:sub(self.pip_dir:len()+2))
+                    table.insert(program.filelist, path:sub(this_pip_dir:len()+2))
                 end
             end
             f:close()
         end
-        program.namespace = self.pip_dir
+        program.namespace = this_pip_dir
         return program
+    end,
+
+    _matchingPipDir = function(self, path)
+        for _,entry in pairs(self.pip_dirs) do
+            local this_pip_dir = posix.realpath(entry)
+            if string.find(path, this_pip_dir, 1, true) ~= nil then
+                return entry
+            end
+        end
+        return nil
     end
 }
 

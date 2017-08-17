@@ -114,6 +114,9 @@ function Dentry:getAttributes()
     local path = self:realpath()
     if path:len() == 0 then path = "/" end
     local attrs = stat.lstat(path)
+    if attrs == nil then
+        error(flu.errno.ENOENT)
+    end
     return {
         dev          = attrs.st_dev,
         ino          = attrs.st_ino,
@@ -197,10 +200,10 @@ local function check_filesystem_watches(ch)
         local event, prefix, watchdir = value[1], value[2], value[3]
 
         if bit_set(event, inotify.IN_CREATE) or bit_set(event, inotify.IN_MOVED_TO) then
-            print(" * CREATED/MOVED_IN/MODIFIED " .. event.name)
+            print(" * " .. prefix .. ": CREATED/MOVED_IN/MODIFIED " .. event.name)
             event_idx = 1
         elseif bit_set(event, inotify.IN_DELETE) or bit_set(event, inotify.IN_MOVED_FROM) then
-            print(" * DELETED/MOVED_OUT " .. event.name)
+            print(" * " .. prefix .. ": DELETED/MOVED_OUT " .. event.name)
             event_idx = 2
         end
 
