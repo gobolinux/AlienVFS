@@ -90,7 +90,6 @@ local pip = {
         local program = {}
         local f = io.open(egg_dir.."/PKG-INFO")
         if f ~= nil then
-            program.path = egg_dir
             program.name, program.version = self:_readNameVersion(f)
             f:close()
         end
@@ -106,6 +105,7 @@ local pip = {
             end
             f:close()
         end
+        program.path = egg_dir
         program.namespace = this_pip_dir
         return program
     end,
@@ -121,7 +121,6 @@ local pip = {
         if f ~= nil then
             local jsonstr = f:read("*all")
             local jsondoc = lunajson.decode(jsonstr)
-            program.path = dist_dir
             program.name = jsondoc.name
             program.version = jsondoc.version
             f:close()
@@ -144,6 +143,7 @@ local pip = {
             end
             f:close()
         end
+        program.path = dist_dir
         program.namespace = this_pip_dir
         return program
     end,
