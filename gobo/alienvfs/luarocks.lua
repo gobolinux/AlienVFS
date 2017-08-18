@@ -36,12 +36,13 @@ local lua = {
         return programs
     end,
 
-    _parseProgramVersion = function(self, path)
-        local namespace = path:sub(1, path:find("/")-1)
-        local contents = io.popen("find " .. path)
+    _parseProgramVersion = function(self, programdir)
+        local namespace = programdir:sub(1, programdir:find("/")-1)
+        local contents = io.popen("find " .. programdir)
         local filelist = {}
-        for path in contents:lines() do
-            table.insert(filelist, path:sub(namespace:len()+2))
+        for fname in contents:lines() do
+            local path, lower_path = fname:sub(namespace:len()+2), nil
+            table.insert(filelist, {path, lower_path})
         end
         contents:close()
         return filelist

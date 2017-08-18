@@ -53,6 +53,8 @@ function Dentry:create(parent, name, namespace)
         dentry.namespace = namespace
         dentry.name = name
         dentry.parent = parent
+        dentry.lower_file = nil
+        dentry.virtual = false
         dentry.children = {}
         if parent ~= nil then
             parent.children[name] = dentry
@@ -68,6 +70,9 @@ function Dentry:remove()
 end
 
 function Dentry:realpath()
+    if self.lower_file ~= nil then
+        return self.lower_file
+    end
     local dpath = {}
     local dentry = self
     while dentry ~= nil do
@@ -98,21 +103,31 @@ end
 
 function Dentry:populate(filelist, namespace)
     local p = Path
-    for _,path in pairs(filelist) do
-        for i,name in ipairs(p:split(path)) do
+    for _,pathinfo in pairs(filelist) do
+        local last = nil
+        local virtualdir = pathinfo[2] ~= nil
+        for i,name in ipairs(p:split(pathinfo[1])) do
             if i == 1 then
-                Dentry:create(self, name, namespace)
+                last = Dentry:create(self, name, namespace)
+                last.virtual = virtualdir
             else
-                local parent = self:lookup(p:split(path, 1, i-1))
-                Dentry:create(parent, name, namespace)
+                local parent = self:lookup(p:split(pathinfo[1], 1, i-1))
+                last = Dentry:create(parent, name, namespace)
+                last.virtual = virtualdir
             end
+        end
+        if last ~= nil and pathinfo[2] ~= nil then
+            last.lower_file = pathinfo[2]
+            last.virtual = false
         end
     end
 end
 
 function Dentry:getAttributes()
     local path = self:realpath()
-    if path:len() == 0 then path = "/" end
+    if path:len() == 0 or self.virtual == true then
+        path = "/"
+    end
     local attrs = stat.lstat(path)
     if attrs == nil then
         error(flu.errno.ENOENT)
@@ -146,9 +161,9 @@ function Dentry:makeMode(attrs)
     if stat.S_IRUSR & attrs.st_mode ~= 0 then set["rusr"] = true end
     if stat.S_IWUSR & attrs.st_mode ~= 0 then set["wusr"] = true end
     if stat.S_IXUSR & attrs.st_mode ~= 0 then set["xusr"] = true end
-    if stat.S_IRGRP & attrs.st_mode ~= 0 then set["rusr"] = true end
-    if stat.S_IWGRP & attrs.st_mode ~= 0 then set["wusr"] = true end
-    if stat.S_IXGRP & attrs.st_mode ~= 0 then set["xusr"] = true end
+    if stat.S_IRGRP & attrs.st_mode ~= 0 then set["rgrp"] = true end
+    if stat.S_IWGRP & attrs.st_mode ~= 0 then set["wgrp"] = true end
+    if stat.S_IXGRP & attrs.st_mode ~= 0 then set["xgrp"] = true end
     if stat.S_IROTH & attrs.st_mode ~= 0 then set["roth"] = true end
     if stat.S_IWOTH & attrs.st_mode ~= 0 then set["woth"] = true end
     if stat.S_IXOTH & attrs.st_mode ~= 0 then set["xoth"] = true end

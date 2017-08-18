@@ -88,7 +88,8 @@ local cpan = {
         local f = io.open(packlist)
         if f ~= nil then
             for line in f:lines() do
-                table.insert(filelist, line:sub(self.cpan_dir:len()+2))
+                local path, lower_path = line:sub(self.cpan_dir:len()+2), nil
+                table.insert(filelist, {path, lower_path})
             end
             f:close()
         end

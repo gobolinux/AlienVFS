@@ -48,7 +48,7 @@ local rubygems = {
         local filelist = {}
         local f = io.popen("gem contents " .. name .. " -v " .. version)
         for line in f:lines() do
-            table.insert(filelist, line)
+            table.insert(filelist, {line, nil})
         end
         f:close()
         return filelist
@@ -56,11 +56,12 @@ local rubygems = {
 
     _getNamespace = function(self, gems_path, filelist)
         local namespace = nil
-        for i,path in pairs(filelist) do
+        for i,pathinfo in pairs(filelist) do
+            local path = pathinfo[1]
             for ns in string.gmatch(gems_path, "[^:]+") do
                 local istart, iend = path:find(ns)
                 if istart ~= nil then
-                    filelist[i] = path:sub(iend+2)
+                    filelist[i][1] = path:sub(iend+2)
                     namespace = ns
                 end
             end

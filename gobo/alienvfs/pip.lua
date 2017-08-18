@@ -85,6 +85,10 @@ local pip = {
         return name, version
     end,
 
+    _getValue = function(self, line)
+        return line:sub(line:len()+2 - line:reverse():find(" "))
+    end,
+
     _parseEgg = function(self, egg_dir)
         local this_pip_dir = self:_matchingPipDir(egg_dir)
         local program = {}
@@ -98,9 +102,9 @@ local pip = {
             program.filelist = {}
             for line in f:lines() do
                 local fname = egg_dir.."/"..line
-                local path = posix.realpath(fname)
+                local path, lower_path = self:_getPath(fname, this_pip_dir, egg_dir, program)
                 if path ~= nil then
-                    table.insert(program.filelist, path:sub(this_pip_dir:len()+2))
+                    table.insert(program.filelist, {path, lower_path})
                 end
             end
             f:close()
@@ -108,10 +112,6 @@ local pip = {
         program.path = egg_dir
         program.namespace = this_pip_dir
         return program
-    end,
-
-    _getValue = function(self, line)
-        return line:sub(line:len()+2 - line:reverse():find(" "))
     end,
 
     _parseDistInfo = function(self, dist_dir)
@@ -136,9 +136,9 @@ local pip = {
             program.filelist = {}
             for line in f:lines() do
                 local fname = dist_dir.."/../"..line:sub(1, line:find(",")-1)
-                local path = posix.realpath(fname)
+                local path, lower_path = self:_getPath(fname, this_pip_dir, dist_dir, program)
                 if path ~= nil then
-                    table.insert(program.filelist, path:sub(this_pip_dir:len()+2))
+                    table.insert(program.filelist, {path, lower_path})
                 end
             end
             f:close()
@@ -146,6 +146,24 @@ local pip = {
         program.path = dist_dir
         program.namespace = this_pip_dir
         return program
+    end,
+
+    _getPath = function(self, fname, basedir, pkgdir, program)
+        local path = posix.realpath(fname)
+        if path ~= nil then
+            if string.find(path, basedir, 1, true) ~= nil then
+                return path:sub(basedir:len()+2), nil
+            end
+            local common = ""
+            for i=1, #path do
+                if path:sub(i,i) ~= basedir:sub(i,i) then
+                    break
+                end
+                common = common .. path:sub(i,i)
+            end
+            return path:sub(common:len()+1), fname
+        end
+        return nil, nil
     end,
 
     _matchingPipDir = function(self, path)
