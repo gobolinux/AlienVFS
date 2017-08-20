@@ -16,6 +16,13 @@ local rubygems = {
             program.version = modinfo:sub(iend+1)
             program.filelist = self:_getFileList(program.name, program.version)
             program.namespace = self:_getNamespace(gems_path, program.filelist) or rubygems_dir
+
+            local prefix = "gems/" .. program.name .. "-" .. program.version .. "/"
+            for i,pathinfo in pairs(program.filelist) do
+                local path, lower_path = pathinfo[1], pathinfo[2]
+                program.filelist[i] = {path:sub(prefix:len()), lower_path}
+            end
+            program.namespace = program.namespace .. "/" .. prefix
             table.insert(programs, program)
         end
         return programs
