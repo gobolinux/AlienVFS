@@ -3,10 +3,10 @@
 -- Released under the GNU GPL version 2
 
 local rubygems = {
-    rubygems_dir = nil,
+    rubygems_dirs = {},
 
     parse = function(self, rubygems_dir)
-        self.rubygems_dir = rubygems_dir
+        table.insert(self.rubygems_dirs, rubygems_dir)
         local programs = {}
         local gems_path = io.popen("gem environment gempath"):read("*l")
         for _,modinfo in pairs(self:_getModules()) do
