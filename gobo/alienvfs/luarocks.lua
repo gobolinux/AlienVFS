@@ -9,12 +9,16 @@ local lua = {
         return self:_parseCommand("luarocks list --porcelain")
     end,
 
-    contents = function(self, directory, programname)
+    populate = function(self, directory, programname)
         return self:_parseCommand("luarocks list --porcelain " .. programname)
     end,
 
     valid = function(self, path)
         return path ~= ".tmpluarockstestwritable" and path ~= "manifest.tmp"
+    end,
+
+    map = function(self, path)
+        return path
     end,
 
     _parseCommand = function(self, command)

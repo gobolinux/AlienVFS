@@ -69,6 +69,14 @@ function Dentry:remove()
     end
 end
 
+function Dentry:childCount()
+    local count = 0
+    for _ in pairs(self.children) do
+        count = count + 1
+    end
+    return count
+end
+
 function Dentry:realpath()
     if self.lower_file ~= nil then
         return self.lower_file
@@ -307,15 +315,18 @@ local function namespace_add_program(prefix, program)
     end
 end
 
-local function namespace_create(backend, prefix, namespaces)
-    local sanitized_namespaces = {}
-    for _,ns in pairs(namespaces) do
-        table.insert(sanitized_namespaces, ns)
-        for _,program in pairs(backend:parse(ns)) do
+local function namespace_create(backend, prefix, module_dirs)
+    local watchlist = {}
+    if module_dirs == nil then
+        module_dirs = backend:moduleDirs()
+    end
+    for _,moddir in pairs(module_dirs) do
+        table.insert(watchlist, moddir)
+        for _,program in pairs(backend:parse(moddir)) do
             namespace_add_program(prefix, program)
         end
     end
-    inotify_monitor(vfs.ch, prefix, sanitized_namespaces)
+    inotify_monitor(vfs.ch, prefix, watchlist)
 end
 
 --
@@ -327,19 +338,30 @@ end
 -- @event_type: 'CREATE', 'DELETE'
 --
 namespace_update = function(backend, prefix, watchdir, path, event_type)
-    if not backend:valid(path) then
-        return
-    end
-    local fullname = "/" .. prefix .. path
     if event_type == "DELETE" then
+        local vfsname = backend:map(path)
+        if vfsname == nil then
+            return
+        end
+        local fullname = "/" .. prefix .. vfsname
+
         local dentry = Path:dentry(vfs.rootfs, fullname)
         if dentry ~= nil then
+            local parent = dentry.parent
             dentry:remove()
+            if parent ~= nil and parent:childCount() == 0 then
+                parent:remove()
+            end
         end
     elseif event_type == "CREATE" then
+        if not backend:valid(path) then
+            return
+        end
+        local fullname = "/" .. prefix .. path
+
         local dentry = Path:dentry(vfs.rootfs, fullname)
         if dentry == nil then
-            for _,program in pairs(backend:contents(watchdir, path)) do
+            for _,program in pairs(backend:populate(watchdir, path)) do
                 namespace_add_program(prefix, program)
             end
         end
@@ -379,7 +401,7 @@ namespace_create(lua, "LuaRocks:", {
 namespace_create(cpan, "CPAN:", {"/System/Aliens/CPAN"})
 
 -- RubyGems
-namespace_create(rubygems, "RubyGems:", {"/System/Aliens/RubyGems"})
+namespace_create(rubygems, "RubyGems:", nil)
 
 -- Run FLU main loop
 local argv = {"AlienVFS", "-oallow_other", "-oauto_unmount", select(1, ...)}

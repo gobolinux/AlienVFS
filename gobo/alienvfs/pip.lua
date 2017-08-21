@@ -34,7 +34,7 @@ local pip = {
         return programs
     end,
 
-    contents = function(self, directory, programname)
+    populate = function(self, directory, programname)
         local path = directory .. "/" .. programname
         local info = posix.stat(path)
         local programfiles = {}
@@ -57,16 +57,16 @@ local pip = {
     end,
 
     valid = function(self, path)
-        if string.find(path, "egg-info", 1, true) ~= nil or string.find(path, "dist-info", 1, true) ~= nil then
-            return true
-        else
-            for _,info in pairs(self.programs_table) do
-                if info.name == posix.basename(path) then
-                    return true
-                end
+        return string.find(path, "egg-info", 1, true) ~= nil or string.find(path, "dist-info", 1, true) ~= nil
+    end,
+
+    map = function(self, path)
+        for _,info in pairs(self.programs_table) do
+            if info.name == posix.basename(path) then
+                return info.name .. "/" .. info.version
             end
         end
-        return false
+        return nil
     end,
 
     _readNameVersion = function(self, f)

@@ -23,7 +23,7 @@ local cpan = {
         return programs
     end,
 
-    contents = function(self, directory, programname)
+    populate = function(self, directory, programname)
         -- TODO
         return {}
     end,
@@ -31,6 +31,11 @@ local cpan = {
     valid = function(self, path)
         -- TODO
         return true
+    end,
+
+    map = function(self, path)
+        -- TODO
+        return path
     end,
 
     _getModules = function(self)
