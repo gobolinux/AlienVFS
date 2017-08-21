@@ -16,7 +16,7 @@ local cpan = {
             local program = {}
             program.name = module
             program.version = self:_getModuleInfo(module)
-            program.namespace = self.cpan_dir
+            program.module_dir= self.cpan_dir
             program.filelist = self:_parsePackList(module)
             table.insert(programs, program)
         end
@@ -55,14 +55,14 @@ local cpan = {
     _getModuleInfo = function(self, module)
         local watch = false
         local version = nil
-        local namespace = nil
+        local module_dir = nil
         for _,line in pairs(self.perldoc_output) do
             if line:find(module .. "$") ~= nil then
                 watch = true
             elseif watch == true then
                 local istart, iend = line:find('"installed into: ')
                 if istart ~= nil then
-                    namespace = line:sub(iend+1, -2)
+                    module_dir = line:sub(iend+1, -2)
                 else
                     istart, iend = line:find('"VERSION: ')
                     if istart ~= nil then
@@ -70,11 +70,11 @@ local cpan = {
                     end
                 end
             end
-            if version ~= nil and namespace ~= nil then
+            if version ~= nil and module_dir ~= nil then
                 break
             end
         end
-        return version, namespace
+        return version, module_dir
     end,
 
     _packListDir = function(self, module)

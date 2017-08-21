@@ -44,13 +44,13 @@ end
 local Dentry = {}
 Dentry.__index = Dentry
 
-function Dentry:create(parent, name, namespace)
+function Dentry:create(parent, name, module_dir)
     if parent ~= nil and parent.children[name] ~= nil then
         return parent.children[name]
     else
         local dentry = {}
         setmetatable(dentry, Dentry)
-        dentry.namespace = namespace
+        dentry.module_dir = module_dir 
         dentry.name = name
         dentry.parent = parent
         dentry.lower_file = nil
@@ -84,11 +84,11 @@ function Dentry:realpath()
     local dpath = {}
     local dentry = self
     while dentry ~= nil do
-        if dentry.namespace == nil then break end
+        if dentry.module_dir == nil then break end
         table.insert(dpath, 1, dentry.name)
         dentry = dentry.parent
     end
-    table.insert(dpath, 1, self.namespace)
+    table.insert(dpath, 1, self.module_dir)
     return table.concat(dpath, "/")
 end
 
@@ -109,18 +109,18 @@ function Dentry:lookup(path)
     return dentry
 end
 
-function Dentry:populate(filelist, namespace)
+function Dentry:populate(filelist, module_dir)
     local p = Path
     for _,pathinfo in pairs(filelist) do
         local last = nil
         local virtualdir = pathinfo[2] ~= nil
         for i,name in ipairs(p:split(pathinfo[1])) do
             if i == 1 then
-                last = Dentry:create(self, name, namespace)
+                last = Dentry:create(self, name, module_dir)
                 last.virtual = virtualdir
             else
                 local parent = self:lookup(p:split(pathinfo[1], 1, i-1))
-                last = Dentry:create(parent, name, namespace)
+                last = Dentry:create(parent, name, module_dir)
                 last.virtual = virtualdir
             end
         end
@@ -311,7 +311,7 @@ local function namespace_add_program(prefix, program)
     local pname = Dentry:create(vfs.rootfs, prefix .. program.name)
     local pversion = Dentry:create(pname, program.version)
     if program.filelist ~= nil then
-        pversion:populate(program.filelist, program.namespace)
+        pversion:populate(program.filelist, program.module_dir)
     end
 end
 
@@ -320,9 +320,9 @@ local function namespace_create(backend, prefix, module_dirs)
     if module_dirs == nil then
         module_dirs = backend:moduleDirs()
     end
-    for _,moddir in pairs(module_dirs) do
-        table.insert(watchlist, moddir)
-        for _,program in pairs(backend:parse(moddir)) do
+    for _,module_dir in pairs(module_dirs) do
+        table.insert(watchlist, module_dir)
+        for _,program in pairs(backend:parse(module_dir)) do
             namespace_add_program(prefix, program)
         end
     end

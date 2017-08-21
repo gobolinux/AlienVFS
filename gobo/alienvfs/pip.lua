@@ -110,7 +110,7 @@ local pip = {
             f:close()
         end
         program.path = egg_dir
-        program.namespace = this_pip_dir
+        program.module_dir = this_pip_dir
         return program
     end,
 
@@ -144,7 +144,7 @@ local pip = {
             f:close()
         end
         program.path = dist_dir
-        program.namespace = this_pip_dir
+        program.module_dir = this_pip_dir
         return program
     end,
 

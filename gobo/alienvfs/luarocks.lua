@@ -32,7 +32,7 @@ local lua = {
             local program = {}
             program.name = result[1]
             program.version = result[2]
-            program.namespace = result[4]
+            program.module_dir = result[4]
             program.filelist = self:_parseProgram(program)
             table.insert(programs, program)
         end
@@ -41,13 +41,13 @@ local lua = {
     end,
 
     _parseProgram = function(self, program)
-        local programdir = program.namespace .. "/" .. program.name .. "/" .. program.version
+        local programdir = program.module_dir .. "/" .. program.name .. "/" .. program.version
         local contents = io.popen("find " .. programdir)
         local filelist = {}
-        -- Update namespace
-        program.namespace = programdir
+        -- Update module_dir
+        program.module_dir = programdir
         for fname in contents:lines() do
-            local path, lower_path = "/"..fname:sub(program.namespace:len()+2), nil
+            local path, lower_path = "/"..fname:sub(program.module_dir:len()+2), nil
             table.insert(filelist, {path, lower_path})
         end
         contents:close()
