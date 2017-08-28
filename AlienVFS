@@ -322,8 +322,11 @@ local function namespace_create(backend, prefix, module_dirs)
     end
     for _,module_dir in pairs(module_dirs) do
         table.insert(watchlist, module_dir)
-        for _,program in pairs(backend:parse(module_dir)) do
-            namespace_add_program(prefix, program)
+        local modules = backend:parse(module_dir)
+        if modules ~= nil then
+            for _,program in pairs(backend:parse(module_dir)) do
+                namespace_add_program(prefix, program)
+            end
         end
     end
     inotify_monitor(vfs.ch, prefix, watchlist)
@@ -398,7 +401,11 @@ namespace_create(lua, "LuaRocks:", {
 })
 
 -- CPAN
-namespace_create(cpan, "CPAN:", {"/System/Aliens/CPAN"})
+local arch = io.popen("uname -m"):read("*l")
+namespace_create(cpan, "CPAN:", {
+    scan_dirs("/System/Aliens/CPAN/lib/perl*"),
+    scan_dirs("/System/Aliens/CPAN/lib/perl*/" .. arch .. "*/auto")
+})
 
 -- RubyGems
 namespace_create(rubygems, "RubyGems:", nil)
