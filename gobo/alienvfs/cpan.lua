@@ -3,21 +3,20 @@
 -- Released under the GNU GPL version 2
 
 local glob = require "posix.glob"
+local inspect = require "inspect"
 
 local cpan = {
-    cpan_dir = nil,
     packlist_dir = nil,
     perldoc_output = {},
 
     parse = function(self, cpan_dir)
-        self.cpan_dir = cpan_dir
         local programs = {}
         for _,module in pairs(self:_getModules()) do
             local program = {}
             program.name = module
             program.version = self:_getModuleInfo(module)
-            program.module_dir= self.cpan_dir
-            program.filelist = self:_parsePackList(module)
+            program.module_dir = cpan_dir
+            program.filelist = self:_parsePackList(module, cpan_dir)
             table.insert(programs, program)
         end
         return programs
@@ -25,16 +24,19 @@ local cpan = {
 
     populate = function(self, directory, programname)
         -- TODO
+        print("CPAN:populate -> dir=" .. directory .. ", program=" .. programname)
         return {}
     end,
 
     valid = function(self, path)
         -- TODO
+        print("CPAN:valid -> path=" .. path)
         return true
     end,
 
     map = function(self, path)
         -- TODO
+        print("CPAN:map -> path=" .. path)
         return path
     end,
 
@@ -77,26 +79,19 @@ local cpan = {
         return version, module_dir
     end,
 
-    _packListDir = function(self, module)
-        if self.packlist_dir == nil then
-            local arch = io.popen("uname -m"):read("*l")
-            for _,dir in pairs(glob.glob(self.cpan_dir .. "/lib/perl*/" .. arch .. "*/auto")) do
-                self.packlist_dir = dir
-            end
-        end
-        return self.packlist_dir
-    end,
-
-    _parsePackList = function(self, module)
+    _parsePackList = function(self, module, cpan_dir)
         local filelist = {}
-        local packlist = self:_packListDir() .. "/" .. string.gsub(module, "::", "/") .. "/.packlist"
-        local f = io.open(packlist)
-        if f ~= nil then
-            for line in f:lines() do
-                local path, lower_path = line:sub(self.cpan_dir:len()+2), nil
-                table.insert(filelist, {path, lower_path})
+        for _,entry in pairs(glob.glob(cpan_dir)) do
+            local packlist = entry .. "/" .. string.gsub(module, "::", "/") .. "/.packlist"
+            local f = io.open(packlist)
+            if f ~= nil then
+                for line in f:lines() do
+                    print(line)
+                    local path, lower_path = line:sub(cpan_dir:len()+2), nil
+                    table.insert(filelist, {path, lower_path})
+                end
+                f:close()
             end
-            f:close()
         end
         return filelist
     end
