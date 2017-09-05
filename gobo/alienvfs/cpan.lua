@@ -81,7 +81,7 @@ local cpan = {
 
     _parsePackList = function(self, module, cpan_dir)
         local filelist = {}
-        for _,entry in pairs(glob.glob(cpan_dir)) do
+        for _,entry in pairs(glob.glob(cpan_dir, 0)) do
             local packlist = entry .. "/" .. string.gsub(module, "::", "/") .. "/.packlist"
             local f = io.open(packlist)
             if f ~= nil then

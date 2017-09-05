@@ -373,7 +373,7 @@ end
 
 local function scan_dirs(pattern)
     local dirs = {}
-    local matches = glob.glob(pattern)
+    local matches = glob.glob(pattern, 0)
     if matches then
         for _, dirname in pairs(matches) do
             table.insert(dirs, dirname)
