@@ -62,7 +62,7 @@ local pip = {
 
     map = function(self, path)
         for _,info in pairs(self.programs_table) do
-            if info.name == posix.basename(path) then
+            if info.name == posix.basename(path) or posix.basename(info.path) == posix.basename(path) then
                 return info.name .. "/" .. info.version
             end
         end
