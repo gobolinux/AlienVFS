@@ -9,11 +9,13 @@ local rubygems = {
 
     moduleDirs = function(self)
         local module_dirs = {}
-        local gems_path = io.popen("gem environment gempath"):read("*l")
-        for module_dir in string.gmatch(gems_path, "[^:]+") do
-            module_dir = module_dir .. "/gems"
-            if stat.lstat(module_dir) ~= nil then
-                table.insert(module_dirs, module_dir)
+        local gems_path = io.popen("gem environment gempath 2> /dev/null"):read("*l")
+        if gems_path ~= nil then
+            for module_dir in string.gmatch(gems_path, "[^:]+") do
+                module_dir = module_dir .. "/gems"
+                if stat.lstat(module_dir) ~= nil then
+                    table.insert(module_dirs, module_dir)
+                end
             end
         end
         return module_dirs
