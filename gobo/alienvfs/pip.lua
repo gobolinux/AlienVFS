@@ -17,19 +17,15 @@ local pip = {
             if lfs.attributes(pip_dir.."/"..file, "mode") == "directory" then
                 local fname = pip_dir.."/"..file
                 if string.find(fname, "egg-info", 1, true) ~= nil then
-                    table.insert(programs, self:_parseEgg(fname))
+                    local info = self:_parseEgg(fname)
+                    table.insert(programs, info)
+                    table.insert(self.programs_table, info)
                 elseif string.find(fname, "dist-info", 1, true) ~= nil then
-                    table.insert(programs, self:_parseDistInfo(fname))
+                    local info = self:_parseDistInfo(fname)
+                    table.insert(programs, info)
+                    table.insert(self.programs_table, info)
                 end
             end
-        end
-        for _,entry in pairs(programs) do
-            -- Local cache
-            info = {}
-            info.path = entry.path
-            info.name = entry.name
-            info.version = entry.version
-            table.insert(self.programs_table, info)
         end
         return programs
     end,
