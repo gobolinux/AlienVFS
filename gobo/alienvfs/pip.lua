@@ -10,6 +10,10 @@ local pip = {
     pip_dirs = {},
     programs_table = {},
 
+    moduleDirs = function(self)
+        return nil
+    end,
+
     parse = function(self, pip_dir)
         local programs = {}
         table.insert(self.pip_dirs, pip_dir)

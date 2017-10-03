@@ -9,6 +9,10 @@ local cpan = {
     packlist_dir = nil,
     perldoc_output = {},
 
+    moduleDirs = function(self)
+        return nil
+    end,
+
     parse = function(self, cpan_dir)
         local programs = {}
         for _,module in pairs(self:_getModules()) do

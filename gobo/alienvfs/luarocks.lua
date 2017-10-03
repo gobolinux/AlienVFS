@@ -5,6 +5,10 @@
 local inspect = require "inspect"
 
 local lua = {
+    moduleDirs = function(self)
+        return nil
+    end,
+
     parse = function(self, luarocks_dir)
         return self:_parseCommand("luarocks list --porcelain")
     end,
