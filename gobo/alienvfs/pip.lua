@@ -102,7 +102,7 @@ local pip = {
             program.filelist = {}
             for line in f:lines() do
                 local fname = egg_dir.."/"..line
-                local path, lower_path = self:_getPath(fname, this_pip_dir, egg_dir, program)
+                local path, lower_path = self:_getPath(fname, this_pip_dir)
                 if path ~= nil then
                     table.insert(program.filelist, {path, lower_path})
                 end
@@ -136,7 +136,7 @@ local pip = {
             program.filelist = {}
             for line in f:lines() do
                 local fname = dist_dir.."/../"..line:sub(1, line:find(",")-1)
-                local path, lower_path = self:_getPath(fname, this_pip_dir, dist_dir, program)
+                local path, lower_path = self:_getPath(fname, this_pip_dir)
                 if path ~= nil then
                     table.insert(program.filelist, {path, lower_path})
                 end
@@ -148,7 +148,7 @@ local pip = {
         return program
     end,
 
-    _getPath = function(self, fname, basedir, pkgdir, program)
+    _getPath = function(self, fname, basedir)
         local path = posix.realpath(fname)
         if path ~= nil then
             if string.find(path, basedir, 1, true) ~= nil then
