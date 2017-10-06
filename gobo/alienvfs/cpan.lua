@@ -6,7 +6,6 @@ local glob = require "posix.glob"
 local inspect = require "inspect"
 
 local cpan = {
-    packlist_dir = nil,
     packlists = {},
     perldoc_output = {},
     programs_table = {},
@@ -51,9 +50,11 @@ local cpan = {
     end,
 
     map = function(self, path)
-        -- TODO
-        print("CPAN:map -> path=" .. path)
-        return path
+        local module = self.packlists[path]
+        if module == nil then
+            return nil
+        end
+        return module.name
     end,
 
     _getModules = function(self, cpan_dir)

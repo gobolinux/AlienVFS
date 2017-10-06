@@ -193,6 +193,7 @@ local inotify_monitor = lanes.gen("*", function(ch, prefix, dirs)
         local wd = handle:addwatch(path,
         inotify.IN_CREATE,
         inotify.IN_DELETE,
+        inotify.IN_DELETE_SELF,
         inotify.IN_CLOSE_WRITE,
         inotify.IN_MOVED_FROM,
         inotify.IN_MOVE)
@@ -222,10 +223,17 @@ local function check_filesystem_watches(ch)
         local event_type, event_idx = {'CREATE', 'DELETE', nil}, 3
         local event, prefix, watchdir = value[1], value[2], value[3]
 
-        if bit_set(event, inotify.IN_CREATE) or bit_set(event, inotify.IN_MOVED_TO) then
+        if bit_set(event, inotify.IN_CREATE) or
+           bit_set(event, inotify.IN_MOVED_TO) then
             print(" * " .. prefix .. ": CREATED/MOVED_IN/MODIFIED " .. event.name)
             event_idx = 1
-        elseif bit_set(event, inotify.IN_DELETE) or bit_set(event, inotify.IN_MOVED_FROM) then
+        elseif bit_set(event, inotify.IN_DELETE) or
+               bit_set(event, inotify.IN_DELETE_SELF) or
+               bit_set(event, inotify.IN_MOVED_FROM) then
+            if event.name == nil then
+                -- event.name will be nil on IN_DELETE_SELF
+                event.name = watchdir
+            end
             print(" * " .. prefix .. ": DELETED/MOVED_OUT " .. event.name)
             event_idx = 2
         end
@@ -315,7 +323,7 @@ local function namespace_add_program(prefix, program)
     end
 end
 
-local function namespace_create(backend, prefix, module_dirs)
+local function namespace_create(backend, prefix, add_watches, module_dirs)
     local watchlist = {}
     if module_dirs == nil then
         module_dirs = backend:moduleDirs()
@@ -329,7 +337,9 @@ local function namespace_create(backend, prefix, module_dirs)
             end
         end
     end
-    inotify_monitor(vfs.ch, prefix, watchlist)
+    if add_watches then
+        inotify_monitor(vfs.ch, prefix, watchlist)
+    end
 end
 
 --
@@ -383,31 +393,34 @@ local function scan_dirs(pattern)
 end
 
 -- Python2
-namespace_create(pip, "PIP:", {
+namespace_create(pip, "PIP:", true, {
     "/System/Aliens/PIP",
     scan_dirs("/System/Aliens/PIP/lib/python2*/site-packages"),
     scan_dirs("/Programs/Python/2.*/lib/python2*/site-packages")
 })
 
 -- Python3
-namespace_create(pip, "PIP3:", {
+namespace_create(pip, "PIP3:", true, {
     scan_dirs("/System/Aliens/PIP/lib/python3*/site-packages"),
     scan_dirs("/Programs/Python/3.*/lib/python3*/site-packages")
 })
 
 -- Lua
-namespace_create(lua, "LuaRocks:", {
+namespace_create(lua, "LuaRocks:", true, {
     scan_dirs("/System/Aliens/LuaRocks/lib/luarocks/rocks*")
 })
 
 -- CPAN
 local arch = io.popen("uname -m"):read("*l")
-namespace_create(cpan, "CPAN:", {
+namespace_create(cpan, "CPAN:", false, {
     scan_dirs("/System/Aliens/CPAN/lib/perl*/" .. arch .. "*/auto")
 })
+packlist = {}
+for key in pairs(cpan.packlists) do table.insert(packlist, key) end
+inotify_monitor(vfs.ch, "CPAN:", packlist)
 
 -- RubyGems
-namespace_create(rubygems, "RubyGems:", nil)
+namespace_create(rubygems, "RubyGems:", false, nil)
 
 -- Run FLU main loop
 local argv = {"AlienVFS", "-oallow_other", "-oauto_unmount", select(1, ...)}
