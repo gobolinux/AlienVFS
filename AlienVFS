@@ -403,7 +403,6 @@ namespace_create(lua, "LuaRocks:", {
 -- CPAN
 local arch = io.popen("uname -m"):read("*l")
 namespace_create(cpan, "CPAN:", {
-    scan_dirs("/System/Aliens/CPAN/lib/perl*"),
     scan_dirs("/System/Aliens/CPAN/lib/perl*/" .. arch .. "*/auto")
 })
 
