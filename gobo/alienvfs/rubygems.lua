@@ -55,24 +55,28 @@ local rubygems = {
                     program.module_dir = self:_getInstallDir(name, version) .. "/" .. name .. "-" .. version .. "/"
 
                     self.programs_list[program.name .. "-" .. program.version] = program
-                    return {program}
+                    return program
                 end
             end
             iend = programname:find("-", iend+1)
         end
-        return {}
+        return nil
     end,
 
     valid = function(self, path)
         return true
     end,
 
-    map = function(self, path)
-        local program = self.programs_list[path]
-        if program == nil then
-            return nil
+    map = function(self, path, event_type)
+        if event_type == "DELETE" then
+            local program = self.programs_list[path]
+            if program ~= nil then
+                return program.name .. "/" .. program.version
+            end
+        elseif event_type == "CREATE" then
+            return path
         end
-        return program.name .. "/" .. program.version
+        return nil
     end,
 
     _getInstallDir = function(self, name, version)

@@ -45,26 +45,30 @@ local pip = {
                 table.insert(programfiles, self:_parseDistInfo(path))
             end
         end
+        module = {}
         for _,entry in pairs(programfiles) do
             -- Local cache
-            info = {}
-            info.path = path
-            info.name = entry.name
-            info.version = entry.version
-            table.insert(self.programs_table, info)
+            module.path = path
+            module.name = entry.name
+            module.version = entry.version
+            table.insert(self.programs_table, module)
         end
-        return programfiles
+        return module
     end,
 
     valid = function(self, path)
         return string.find(path, "egg-info", 1, true) ~= nil or string.find(path, "dist-info", 1, true) ~= nil
     end,
 
-    map = function(self, path)
-        for _,info in pairs(self.programs_table) do
-            if info.name == posix.basename(path) or posix.basename(info.path) == posix.basename(path) then
-                return info.name .. "/" .. info.version
+    map = function(self, path, event_type)
+        if event_type == "DELETE" then
+           for _,info in pairs(self.programs_table) do
+                if info.name == posix.basename(path) or posix.basename(info.path) == posix.basename(path) then
+                    return info.name .. "/" .. info.version
+                end
             end
+        elseif event_type == "CREATE" then
+            return path
         end
         return nil
     end,

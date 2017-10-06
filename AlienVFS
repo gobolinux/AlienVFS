@@ -352,7 +352,7 @@ end
 --
 namespace_update = function(backend, prefix, watchdir, path, event_type)
     if event_type == "DELETE" then
-        local vfsname = backend:map(path)
+        local vfsname = backend:map(path, event_type)
         if vfsname == nil then
             return
         end
@@ -370,12 +370,15 @@ namespace_update = function(backend, prefix, watchdir, path, event_type)
         if not backend:valid(path) then
             return
         end
-        local fullname = "/" .. prefix .. path
-
-        local dentry = Path:dentry(vfs.rootfs, fullname)
-        if dentry == nil then
-            for _,program in pairs(backend:populate(watchdir, path)) do
-                namespace_add_program(prefix, program)
+        local vfsname = backend:map(path, event_type)
+        if vfsname ~= nil then
+            local fullname = "/" .. prefix .. vfsname
+            local dentry = Path:dentry(vfs.rootfs, fullname)
+            if dentry == nil then
+                local program = backend:populate(watchdir, path)
+                if program ~= nil then
+                    namespace_add_program(prefix, program)
+                end
             end
         end
     end
@@ -410,17 +413,25 @@ namespace_create(lua, "LuaRocks:", true, {
     scan_dirs("/System/Aliens/LuaRocks/lib/luarocks/rocks*")
 })
 
--- CPAN
-local packlist = {}
-local arch = io.popen("uname -m"):read("*l")
-namespace_create(cpan, "CPAN:", false, {
-    scan_dirs("/System/Aliens/CPAN/lib/perl*/" .. arch .. "*/auto")
-})
-for key in pairs(cpan.packlists) do table.insert(packlist, key) end
-inotify_monitor(vfs.ch, "CPAN:", packlist)
-
 -- RubyGems
 namespace_create(rubygems, "RubyGems:", false, nil)
+
+-- CPAN
+local packlist, addlist = {}, {}
+local arch = io.popen("uname -m"):read("*l")
+local cpan_dir = { scan_dirs("/System/Aliens/CPAN/lib/perl*/" .. arch .. "*/auto") }
+namespace_create(cpan, "CPAN:", false, {
+    table.unpack(cpan_dir)
+})
+
+-- Inotify watches to catch removal of CPAN modules and installation of new ones
+for key in pairs(cpan.packlists) do table.insert(packlist, key) end
+inotify_monitor(vfs.ch, "CPAN:", packlist)
+inotify_monitor(vfs.ch, "CPAN:", {
+    table.unpack(cpan_dir),
+    scan_dirs("/System/Aliens/CPAN/lib/perl*/" .. arch .. "*/auto/*")
+})
+
 
 -- Run FLU main loop
 local argv = {"AlienVFS", "-oallow_other", "-oauto_unmount", select(1, ...)}

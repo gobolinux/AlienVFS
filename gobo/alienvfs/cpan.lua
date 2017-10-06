@@ -6,22 +6,24 @@ local glob = require "posix.glob"
 local inspect = require "inspect"
 
 local cpan = {
+    cpan_dir = nil,
     packlists = {},
     perldoc_output = {},
-    programs_table = {},
 
     moduleDirs = function(self)
         return nil
     end,
 
     parse = function(self, cpan_dir)
+        if self.cpan_dir == nil then self.cpan_dir = cpan_dir end
         local programs = {}
         self.perldoc_output = self:_runPerlDoc()
         for _,module in pairs(self:_getModules(cpan_dir)) do
             if module._packlist ~= nil then
                 table.insert(programs, module)
-                table.insert(self.programs_table, module)
-                self.packlists[module._packlist] = module
+                if self.packlists[module._packlist] == nil then
+                    self.packlists[module._packlist] = module
+                end
             end
         end
         return programs
@@ -31,30 +33,38 @@ local cpan = {
         -- Lazy inotify:create handling
         local filelist = {}
         for _,module in pairs(self:_getModules(directory)) do
-            local program = {}
-            program.name = module
-            program._packlist, program.filelist = self:_parsePackList(module, program.module_dir)
-            if self.packlists[program._packlist] ~= nil then
-                table.insert(self.programs_table, program)
-                self.packlists[program._packlist] = program
-                return program.filelist
+            if module._packlist ~= nil and self.packlists[module._packlist] == nil then
+                self.packlists[module._packlist] = module
+                return module
             end
         end
-        return {}
+        return nil
     end,
 
     valid = function(self, path)
-        -- TODO
-        print("CPAN:valid -> path=" .. path)
+        -- This function is called to test if a newly created path is a new module
         return true
     end,
 
-    map = function(self, path)
+    map = function(self, path, event_type)
+        -- Given a path, returns the corresponding AlienVFS module name
         local module = self.packlists[path]
-        if module == nil then
-            return nil
+        if module ~= nil then
+            return module.name
         end
-        return module.name
+
+        -- Update the packlists and try again
+        local old_packlist = { table.unpack(self.packlists) }
+        self:parse(self.cpan_dir)
+        for key,value in pairs(self.packlists) do
+            if old_packlist[key] == nil and string.find(key, path, 1, true) ~= nil then
+                -- Obtain a reference to the module name and then remove the new entry
+                -- from packlists. We do so in order to keep the logic of populate() simple.
+                module, self.packlists[key] = self.packlists[key], nil
+                return module.name
+            end
+        end
+        return nil
     end,
 
     _getModules = function(self, cpan_dir)

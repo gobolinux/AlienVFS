@@ -14,14 +14,18 @@ local lua = {
     end,
 
     populate = function(self, directory, programname)
-        return self:_parseCommand("luarocks list --porcelain " .. programname)
+        local program = self:_parseCommand("luarocks list --porcelain " .. programname)
+        if #program ~= 0 then
+            return program[1]
+        end
+        return nil
     end,
 
     valid = function(self, path)
         return path ~= ".tmpluarockstestwritable" and path ~= "manifest.tmp"
     end,
 
-    map = function(self, path)
+    map = function(self, path, event_type)
         return path
     end,
 
