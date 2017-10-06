@@ -411,11 +411,11 @@ namespace_create(lua, "LuaRocks:", true, {
 })
 
 -- CPAN
+local packlist = {}
 local arch = io.popen("uname -m"):read("*l")
 namespace_create(cpan, "CPAN:", false, {
     scan_dirs("/System/Aliens/CPAN/lib/perl*/" .. arch .. "*/auto")
 })
-packlist = {}
 for key in pairs(cpan.packlists) do table.insert(packlist, key) end
 inotify_monitor(vfs.ch, "CPAN:", packlist)
 
