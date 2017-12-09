@@ -402,18 +402,22 @@ end
 namespace_create(pip, "PIP:", true, {
     "/System/Aliens/PIP",
     scan_dirs("/System/Aliens/PIP/lib/python2*/site-packages"),
-    scan_dirs("/Programs/Python/2.*/lib/python2*/site-packages")
+    scan_dirs("/usr/lib64/python2*/site-packages"),
+    scan_dirs("/usr/lib/python2*/site-packages")
 })
 
 -- Python3
 namespace_create(pip, "PIP3:", true, {
     scan_dirs("/System/Aliens/PIP/lib/python3*/site-packages"),
-    scan_dirs("/Programs/Python/3.*/lib/python3*/site-packages")
+    scan_dirs("/usr/lib64/python3*/site-packages"),
+    scan_dirs("/usr/lib/python3*/site-packages")
 })
 
 -- Lua
 namespace_create(lua, "LuaRocks:", true, {
-    scan_dirs("/System/Aliens/LuaRocks/lib/luarocks/rocks*")
+    scan_dirs("/System/Aliens/LuaRocks/lib/luarocks/rocks*"),
+    scan_dirs("/usr/lib64/lua/5.*/luarocks/rocks*"),
+    scan_dirs("/usr/lib/lua/5.*/luarocks/rocks*")
 })
 
 -- RubyGems
@@ -422,7 +426,11 @@ namespace_create(rubygems, "RubyGems:", false, nil)
 -- CPAN
 local packlist, addlist = {}, {}
 local arch = io.popen("uname -m"):read("*l")
-local cpan_dir = { scan_dirs("/System/Aliens/CPAN/lib/perl*/" .. arch .. "*/auto") }
+local cpan_dir = {
+    scan_dirs("/System/Aliens/CPAN/lib/perl*/" .. arch .. "*/auto"),
+    scan_dirs("/usr/lib64/perl*/" .. arch .. "*/auto"),
+    scan_dirs("/usr/lib/perl*/" .. arch .. "*/auto")
+ }
 namespace_create(cpan, "CPAN:", false, {
     table.unpack(cpan_dir)
 })
@@ -432,7 +440,9 @@ for key in pairs(cpan.packlists) do table.insert(packlist, key) end
 inotify_monitor(vfs.ch, "CPAN:", packlist)
 inotify_monitor(vfs.ch, "CPAN:", {
     table.unpack(cpan_dir),
-    scan_dirs("/System/Aliens/CPAN/lib/perl*/" .. arch .. "*/auto/*")
+    scan_dirs("/System/Aliens/CPAN/lib/perl*/" .. arch .. "*/auto/*"),
+    scan_dirs("/usr/lib64/perl*/" .. arch .. "*/auto/*"),
+    scan_dirs("/usr/lib/perl*/" .. arch .. "*/auto/*")
 })
 
 
