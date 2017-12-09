@@ -329,11 +329,14 @@ local function namespace_create(backend, prefix, add_watches, module_dirs)
         module_dirs = backend:moduleDirs()
     end
     for _,module_dir in pairs(module_dirs) do
-        table.insert(watchlist, module_dir)
-        local modules = backend:parse(module_dir)
-        if modules ~= nil then
-            for _,program in pairs(backend:parse(module_dir)) do
-                namespace_add_program(prefix, program)
+        local attrs = stat.lstat(module_dir)
+        if attrs ~= nil then
+            table.insert(watchlist, module_dir)
+            local modules = backend:parse(module_dir)
+            if modules ~= nil then
+                for _,program in pairs(backend:parse(module_dir)) do
+                    namespace_add_program(prefix, program)
+                end
             end
         end
     end
