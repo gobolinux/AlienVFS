@@ -28,10 +28,10 @@ AlienVFS depends on the following packages:
 |---------------|---------------|-----------|
 | libattr-devel | libattr1-dev  | ATTR      |
 | luarocks      | luarocks      | Lua       |
-| lua-devel     | lua5.3        | LuaRocks  |
-| fuse          | liblua5.3-dev | Fuse      |
-| fuse-devel    | fuse          |           |
-|               | libfuse-dev   |
+| lua           | lua5.3        | LuaRocks  |
+| lua-devel     | liblua5.3-dev | Fuse      |
+| fuse          | fuse          |           |
+| fuse-devel    | libfuse-dev   |           |
 
 ## Installation
 
