@@ -16,6 +16,7 @@ dependencies = {
    "luaposix",
    "lunajson",
    "inotify",
+   "inspect",
    "lanes"
 }
 build = {
