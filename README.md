@@ -7,7 +7,7 @@ friends are exposed under a single mount point. The virtual directory
 presents the module name and one or more subdirectories holding the
 installed version(s) of that module.
 
-# Supported package managers
+## Supported package managers
 
 AlienVFS has built-in support for a few package managers:
 
@@ -20,7 +20,20 @@ The virtual filesystem tree automatically updates whenever
 a new programming language module is installed or removed
 by the package managers.
 
-# Installation
+## Dependencies
+
+AlienVFS depends on the following packages:
+
+| Fedora        | Ubuntu        | GoboLinux |
+|---------------|---------------|-----------|
+| libattr-devel | libattr1-dev  | ATTR      |
+| luarocks      | luarocks      | Lua       |
+| lua-devel     | lua5.3        | LuaRocks  |
+| fuse          | liblua5.3-dev | Fuse      |
+| fuse-devel    | fuse          |           |
+|               | libfuse-dev   |
+
+## Installation
 
 Assuming you want to install from the most recent Git snapshot,
 the following two lines are enough to install AlienVFS on a regular
@@ -31,7 +44,15 @@ $ git clone https://github.com/gobolinux/AlienVFS.git
 $ sudo luarocks build AlienVFS/rockspecs/alienvfs-scm-1.rockspec
 ```
 
-# Usage
+Next, make sure that /etc/fuse.conf contains the following line enabling
+regular users to access the modules exposed by AlienVFS under the given
+mountpoint:
+
+```
+user_allow_other
+```
+
+## Usage
 
 Under a GoboLinux distribution, the main script will be saved under
 /System/Aliens/LuaRocks/bin. If that directory is not on your $PATH,
