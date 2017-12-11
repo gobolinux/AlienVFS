@@ -39,9 +39,16 @@ Assuming you want to install from the most recent Git snapshot,
 the following two lines are enough to install AlienVFS on a regular
 distro:
 
-```
+```bash
 $ git clone https://github.com/gobolinux/AlienVFS.git
-$ sudo luarocks build AlienVFS/rockspecs/alienvfs-scm-1.rockspec
+$ sudo luarocks install AlienVFS/rockspecs/alienvfs-scm-1.rockspec
+```
+
+You may also instruct LuaRocks to install it under your home directory
+with:
+
+```
+$ luarocks --local install AlienVFS/rockspecs/alienvfs-scm-1.rockspec
 ```
 
 Next, make sure that /etc/fuse.conf contains the following line enabling
@@ -55,11 +62,12 @@ user_allow_other
 ## Usage
 
 Under a GoboLinux distribution, the main script will be saved under
-/System/Aliens/LuaRocks/bin. If that directory is not on your $PATH,
-make sure to append it and then invoke the main script passing the
-mount point where modules will be shown:
+/System/Aliens/LuaRocks/bin. A local installation will place the main
+file under ~/.luarocks/bin. If that directory is not on your $PATH,
+make sure to append it to that variable and then invoke AlienVFS,
+passing as argument the mount point where modules will be shown:
 
-```
+```bash
 $ mkdir -p /Mount/Aliens
 $ AlienVFS /Mount/Aliens
 ```
