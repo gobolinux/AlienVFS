@@ -53,6 +53,9 @@ local pip = {
             module.version = entry.version
             table.insert(self.programs_table, module)
         end
+        if #module == 0 then
+            module = nil
+        end
         return module
     end,
 
@@ -95,6 +98,7 @@ local pip = {
 
     _parseEgg = function(self, egg_dir)
         local this_pip_dir = self:_matchingPipDir(egg_dir)
+        if this_pip_dir == nil then return {} end
         local program = {}
         local f = io.open(egg_dir.."/PKG-INFO")
         if f ~= nil then
@@ -120,6 +124,7 @@ local pip = {
 
     _parseDistInfo = function(self, dist_dir)
         local this_pip_dir = self:_matchingPipDir(dist_dir)
+        if this_pip_dir == nil then return {} end
         local program = {}
         local f = io.open(dist_dir.."/metadata.json")
         if f ~= nil then
@@ -173,7 +178,7 @@ local pip = {
     _matchingPipDir = function(self, path)
         for _,entry in pairs(self.pip_dirs) do
             local this_pip_dir = posix.realpath(entry)
-            if string.find(path, this_pip_dir, 1, true) ~= nil then
+            if this_pip_dir ~= nil and string.find(path, this_pip_dir, 1, true) ~= nil then
                 return entry
             end
         end
