@@ -4,60 +4,68 @@
 
 local glob = require "posix.glob"
 
-local function scan_dirs(pattern)
+local function scan_dirs(patterns)
     local dirs = {}
-    local matches = glob.glob(pattern, 0)
-    if matches then
-        for _, dirname in pairs(matches) do
-            table.insert(dirs, dirname)
+    for _, pattern in pairs(patterns) do
+        local matches = glob.glob(pattern, 0)
+        if matches then
+            for _, dirname in pairs(matches) do
+                table.insert(dirs, dirname)
+            end
         end
-        return table.unpack(dirs)
     end
+    return dirs
 end
 
 local config = {
     pip_directories = function(self)
-        return {
+        return scan_dirs({
             "/System/Aliens/PIP",
-            scan_dirs("/System/Aliens/PIP/lib/python2*/site-packages"),
-            scan_dirs("/usr/lib64/python2*/site-packages"),
-            scan_dirs("/usr/lib/python2*/site-packages")
-        }
+            "/System/Aliens/PIP/lib/python2*/site-packages",
+            "/Programs/Python/2.*/lib/python2*/site-packages",
+            "/usr/lib64/python2*/site-packages",
+            "/usr/lib/python2*/site-packages"
+        })
     end,
 
     pip3_directories = function(self)
-        return {
-            scan_dirs("/System/Aliens/PIP/lib/python3*/site-packages"),
-            scan_dirs("/usr/lib64/python3*/site-packages"),
-            scan_dirs("/usr/lib/python3*/site-packages")
-        }
+        return scan_dirs({
+            "/System/Aliens/PIP/lib/python3*/site-packages",
+            "/Programs/Python/3.*/lib/python3*/site-packages",
+            "/usr/lib64/python3*/site-packages",
+            "/usr/lib/python3*/site-packages"
+        })
     end,
 
     luarocks_directories = function(self)
-        return {
-            scan_dirs("/System/Aliens/LuaRocks/lib/luarocks/rocks*"),
-            scan_dirs("/usr/lib64/lua/5.*/luarocks/rocks*"),
-            scan_dirs("/usr/lib/lua/5.*/luarocks/rocks*")
-        }
+        return scan_dirs({
+            "/System/Aliens/LuaRocks/lib/luarocks/rocks*",
+            "/usr/lib64/lua/5.*/luarocks/rocks*",
+            "/usr/lib/lua/5.*/luarocks/rocks*"
+        })
     end,
 
     cpan_directories = function(self)
         local arch = io.popen("uname -m"):read("*l")
-        return {
-            scan_dirs("/System/Aliens/CPAN/lib/perl*/" .. arch .. "*/auto"),
-            scan_dirs("/usr/lib64/perl*/" .. arch .. "*/auto"),
-            scan_dirs("/usr/lib/perl*/" .. arch .. "*/auto")
-        }
+        return scan_dirs({
+            "/System/Aliens/CPAN/lib/perl*/" .. arch .. "*/auto",
+            "/usr/lib64/perl*/" .. arch .. "*/auto",
+            "/usr/lib/perl*/" .. arch .. "*/auto"
+        })
     end,
 
     cpan_inotify_directories = function(self)
         local arch = io.popen("uname -m"):read("*l")
-        return {
-            self:cpan_directories(),
-            scan_dirs("/System/Aliens/CPAN/lib/perl*/" .. arch .. "*/auto/*"),
-            scan_dirs("/usr/lib64/perl*/" .. arch .. "*/auto/*"),
-            scan_dirs("/usr/lib/perl*/" .. arch .. "*/auto/*")
-        }
+        local regular_dirs = self:cpan_directories()
+        local inotify_dirs = scan_dirs({
+            "/System/Aliens/CPAN/lib/perl*/" .. arch .. "*/auto/*",
+            "/usr/lib64/perl*/" .. arch .. "*/auto/*",
+            "/usr/lib/perl*/" .. arch .. "*/auto/*"
+        })
+        for _, dir in pairs(regular_dirs) do
+            table.insert(inotify_dirs, dir)
+        end
+        return inotify_dirs
     end
 }
 
