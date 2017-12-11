@@ -8,7 +8,6 @@ local inspect = require "inspect"
 local inotify = require "inotify"
 local flu = require "flu"
 local posix = require "posix"
-local glob = require "posix.glob"
 local stat = require "posix.sys.stat"
 local lanes = require "lanes".configure({track_lanes=true})
 
@@ -16,6 +15,7 @@ local pip = require "gobo.alienvfs.pip"
 local cpan = require "gobo.alienvfs.cpan"
 local lua = require "gobo.alienvfs.luarocks"
 local rubygems = require "gobo.alienvfs.rubygems"
+local config = require "gobo.alienvfs.config"
 
 
 -- Basic operations on paths
@@ -389,63 +389,26 @@ namespace_update = function(backend, prefix, watchdir, path, event_type)
     end
 end
 
-local function scan_dirs(pattern)
-    local dirs = {}
-    local matches = glob.glob(pattern, 0)
-    if matches then
-        for _, dirname in pairs(matches) do
-            table.insert(dirs, dirname)
-        end
-        return table.unpack(dirs)
-    end
-end
-
 -- Python2
-namespace_create(pip, "PIP:", true, {
-    "/System/Aliens/PIP",
-    scan_dirs("/System/Aliens/PIP/lib/python2*/site-packages"),
-    scan_dirs("/usr/lib64/python2*/site-packages"),
-    scan_dirs("/usr/lib/python2*/site-packages")
-})
+namespace_create(pip, "PIP:", true, config.pip_directories())
 
 -- Python3
-namespace_create(pip, "PIP3:", true, {
-    scan_dirs("/System/Aliens/PIP/lib/python3*/site-packages"),
-    scan_dirs("/usr/lib64/python3*/site-packages"),
-    scan_dirs("/usr/lib/python3*/site-packages")
-})
+namespace_create(pip, "PIP3:", true, config.pip3_directories())
 
 -- Lua
-namespace_create(lua, "LuaRocks:", true, {
-    scan_dirs("/System/Aliens/LuaRocks/lib/luarocks/rocks*"),
-    scan_dirs("/usr/lib64/lua/5.*/luarocks/rocks*"),
-    scan_dirs("/usr/lib/lua/5.*/luarocks/rocks*")
-})
+namespace_create(lua, "LuaRocks:", true, config.luarocks_directories())
 
 -- RubyGems
 namespace_create(rubygems, "RubyGems:", false, nil)
 
 -- CPAN
-local packlist, addlist = {}, {}
-local arch = io.popen("uname -m"):read("*l")
-local cpan_dir = {
-    scan_dirs("/System/Aliens/CPAN/lib/perl*/" .. arch .. "*/auto"),
-    scan_dirs("/usr/lib64/perl*/" .. arch .. "*/auto"),
-    scan_dirs("/usr/lib/perl*/" .. arch .. "*/auto")
- }
-namespace_create(cpan, "CPAN:", false, {
-    table.unpack(cpan_dir)
-})
+namespace_create(cpan, "CPAN:", false, config.cpan_directories())
 
 -- Inotify watches to catch removal of CPAN modules and installation of new ones
+local packlist = {}
 for key in pairs(cpan.packlists) do table.insert(packlist, key) end
 inotify_monitor(vfs.ch, "CPAN:", packlist)
-inotify_monitor(vfs.ch, "CPAN:", {
-    table.unpack(cpan_dir),
-    scan_dirs("/System/Aliens/CPAN/lib/perl*/" .. arch .. "*/auto/*"),
-    scan_dirs("/usr/lib64/perl*/" .. arch .. "*/auto/*"),
-    scan_dirs("/usr/lib/perl*/" .. arch .. "*/auto/*")
-})
+inotify_monitor(vfs.ch, "CPAN:", config:cpan_inotify_directories())
 
 
 -- Run FLU main loop
