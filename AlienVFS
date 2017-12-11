@@ -335,7 +335,7 @@ local function namespace_create(backend, prefix, add_watches, module_dirs)
             local modules = backend:parse(module_dir)
             if modules ~= nil then
                 for _,program in pairs(backend:parse(module_dir)) do
-                    if #program ~= 0 then
+                    if program.name ~= nil then
                         namespace_add_program(prefix, program)
                     end
                 end
