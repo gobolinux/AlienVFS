@@ -26,6 +26,7 @@ build = {
       ["gobo.alienvfs.cpan"] = "gobo/alienvfs/cpan.lua",
       ["gobo.alienvfs.luarocks"] = "gobo/alienvfs/luarocks.lua",
       ["gobo.alienvfs.rubygems"] = "gobo/alienvfs/rubygems.lua"
+      ["gobo.alienvfs.config"] = "gobo/alienvfs/config.lua"
    },
    install = {
       bin = {
