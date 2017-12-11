@@ -22,12 +22,16 @@ local pip = {
                 local fname = pip_dir.."/"..file
                 if string.find(fname, "egg-info", 1, true) ~= nil then
                     local info = self:_parseEgg(fname)
-                    table.insert(programs, info)
-                    table.insert(self.programs_table, info)
+                    if info.name ~= nil then
+                        table.insert(programs, info)
+                        table.insert(self.programs_table, info)
+                    end
                 elseif string.find(fname, "dist-info", 1, true) ~= nil then
                     local info = self:_parseDistInfo(fname)
-                    table.insert(programs, info)
-                    table.insert(self.programs_table, info)
+                    if info.name ~= nil then
+                        table.insert(programs, info)
+                        table.insert(self.programs_table, info)
+                    end
                 end
             end
         end
@@ -40,9 +44,15 @@ local pip = {
         local programfiles = {}
         if info ~= nil and info.type == "directory" then
             if string.find(programname, "egg-info", 1, true) ~= nil then
-                table.insert(programfiles, self:_parseEgg(path))
+                local egginfo = self:_parseEgg(path)
+                if egginfo.name ~= nil then
+                    table.insert(programfiles, egginfo)
+                end
             elseif string.find(programname, "dist-info", 1, true) ~= nil then
-                table.insert(programfiles, self:_parseDistInfo(path))
+                local distinfo = self:_parseDistInfo(path)
+                if distinfo.name ~= nil then
+                    table.insert(programfiles, distinfo)
+                end
             end
         end
         module = {}
@@ -99,12 +109,15 @@ local pip = {
     _parseEgg = function(self, egg_dir)
         local this_pip_dir = self:_matchingPipDir(egg_dir)
         if this_pip_dir == nil then return {} end
+
         local program = {}
         local f = io.open(egg_dir.."/PKG-INFO")
         if f ~= nil then
             program.name, program.version = self:_readNameVersion(f)
             f:close()
         end
+        if program.name == nil then return {} end
+
         f = io.open(egg_dir.."/installed-files.txt")
         if f ~= nil then
             program.filelist = {}
@@ -125,6 +138,7 @@ local pip = {
     _parseDistInfo = function(self, dist_dir)
         local this_pip_dir = self:_matchingPipDir(dist_dir)
         if this_pip_dir == nil then return {} end
+
         local program = {}
         local f = io.open(dist_dir.."/metadata.json")
         if f ~= nil then
@@ -140,6 +154,8 @@ local pip = {
                 f:close()
             end
         end
+        if program.name == nil then return {} end
+
         f = io.open(dist_dir.."/RECORD")
         if f ~= nil then
             program.filelist = {}
