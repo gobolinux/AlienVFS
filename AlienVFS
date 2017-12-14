@@ -334,7 +334,7 @@ local function namespace_create(backend, prefix, add_watches, module_dirs)
             table.insert(watchlist, module_dir)
             local modules = backend:parse(module_dir)
             if modules ~= nil then
-                for _,program in pairs(backend:parse(module_dir)) do
+                for _,program in pairs(modules) do
                     if program.name ~= nil then
                         namespace_add_program(prefix, program)
                     end
@@ -389,19 +389,11 @@ namespace_update = function(backend, prefix, watchdir, path, event_type)
     end
 end
 
--- Python2
+-- Namespace creation
 namespace_create(pip, "PIP:", true, config.pip_directories())
-
--- Python3
 namespace_create(pip, "PIP3:", true, config.pip3_directories())
-
--- Lua
 namespace_create(lua, "LuaRocks:", true, config.luarocks_directories())
-
--- RubyGems
 namespace_create(rubygems, "RubyGems:", false, nil)
-
--- CPAN
 namespace_create(cpan, "CPAN:", false, config.cpan_directories())
 
 -- Inotify watches to catch removal of CPAN modules and installation of new ones
@@ -409,7 +401,6 @@ local packlist = {}
 for key in pairs(cpan.packlists) do table.insert(packlist, key) end
 inotify_monitor(vfs.ch, "CPAN:", packlist)
 inotify_monitor(vfs.ch, "CPAN:", config:cpan_inotify_directories())
-
 
 -- Run FLU main loop
 local argv = {"AlienVFS", "-oallow_other", "-oauto_unmount", select(1, ...)}
