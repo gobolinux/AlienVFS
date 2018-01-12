@@ -46,7 +46,9 @@ local config = {
     end,
 
     cpan_directories = function(self)
-        local arch = io.popen("uname -m"):read("*l")
+        local f = io.popen("uname -m")
+        local arch = f:read("*l")
+        f:close()
         return scan_dirs({
             "/System/Aliens/CPAN/lib/perl*/" .. arch .. "*/auto",
             "/usr/lib64/perl*/" .. arch .. "*/auto",
@@ -55,13 +57,15 @@ local config = {
     end,
 
     cpan_inotify_directories = function(self)
-        local arch = io.popen("uname -m"):read("*l")
+        local f = io.popen("uname -m")
+        local arch = f:read("*l")
         local regular_dirs = self:cpan_directories()
         local inotify_dirs = scan_dirs({
             "/System/Aliens/CPAN/lib/perl*/" .. arch .. "*/auto/*",
             "/usr/lib64/perl*/" .. arch .. "*/auto/*",
             "/usr/lib/perl*/" .. arch .. "*/auto/*"
         })
+        f:close()
         for _, dir in pairs(regular_dirs) do
             table.insert(inotify_dirs, dir)
         end

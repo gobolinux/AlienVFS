@@ -9,7 +9,8 @@ local rubygems = {
 
     moduleDirs = function(self)
         local module_dirs = {}
-        local gems_path = io.popen("gem environment gempath 2> /dev/null"):read("*l")
+        local f = io.popen("gem environment gempath 2> /dev/null")
+        local gems_path = f:read("*l")
         if gems_path ~= nil then
             for module_dir in string.gmatch(gems_path, "[^:]+") do
                 module_dir = module_dir .. "/gems"
@@ -18,6 +19,7 @@ local rubygems = {
                 end
             end
         end
+        f:close()
         return module_dirs
     end,
 
@@ -85,6 +87,7 @@ local rubygems = {
             local istart, iend = line:find(": ")
             return string.sub(line, iend+1) .. "/gems"
         end
+        f:close()
         return nil
     end,
 
