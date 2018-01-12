@@ -113,7 +113,7 @@ local cpan = {
                 end
             end
         end
-        print("Failed to get version of module " .. module_name)
+        print("CPAN: failed to get version of module " .. module_name)
         return nil
     end,
 
