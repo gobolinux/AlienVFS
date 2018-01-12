@@ -93,7 +93,7 @@ local cpan = {
             end
             module.version = self:_getModuleVersion(module.name)
             module.filelist = self:_parsePackList(cpan_dir, packlist)
-            if module.filelist ~= nil then
+            if module.version ~= nil and module.filelist ~= nil then
                 table.insert(modules, module)
             end
         end
