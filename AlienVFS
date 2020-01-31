@@ -17,6 +17,14 @@ local lua = require "gobo.alienvfs.luarocks"
 local rubygems = require "gobo.alienvfs.rubygems"
 local config = require "gobo.alienvfs.config"
 
+-- Table of prefix strings and their corresponding modules
+
+local prefixes = {}
+prefixes["PIP:"] = {pip, config.pip_directories()}
+prefixes["PIP3:"] = {pip, config.pip3_directories()}
+prefixes["LuaRocks:"] = {lua, config.luarocks_directories()}
+prefixes["CPAN:"] = {cpan, config.cpan_directories()}
+prefixes["RubyGems:"] = {rubygems, nil}
 
 -- Basic operations on paths
 
@@ -239,14 +247,9 @@ local function check_filesystem_watches(ch)
         end
 
         if event_type[event_idx] ~= nil then
-            if prefix == "PIP:" or prefix == "PIP3:" then
-                namespace_update(pip, prefix, watchdir, event.name, event_type[event_idx])
-            elseif prefix == "LuaRocks:" then
-                namespace_update(lua, prefix, watchdir, event.name, event_type[event_idx])
-            elseif prefix == "CPAN:" then
-                namespace_update(cpan, prefix, watchdir, event.name, event_type[event_idx])
-            elseif prefix == "RubyGems:" then
-                namespace_update(rubygems, prefix, watchdir, event.name, event_type[event_idx])
+            local module = prefixes[prefix .. ":"]
+            if module ~= nil then
+                namespace_update(module, prefix, watchdir, event.name, event_type[event_idx])
             end
         end
     end
@@ -335,7 +338,7 @@ local function namespace_create(backend, prefix, add_watches, module_dirs)
             local modules = backend:parse(module_dir)
             if modules ~= nil then
                 for _,program in pairs(modules) do
-                    if program.name ~= nil then
+                    if program.name ~= nil and program.name:len() >= 1 then
                         namespace_add_program(prefix, program)
                     end
                 end
@@ -390,17 +393,23 @@ namespace_update = function(backend, prefix, watchdir, path, event_type)
 end
 
 -- Namespace creation
-namespace_create(pip, "PIP:", true, config.pip_directories())
-namespace_create(pip, "PIP3:", true, config.pip3_directories())
-namespace_create(lua, "LuaRocks:", true, config.luarocks_directories())
-namespace_create(rubygems, "RubyGems:", false, nil)
-namespace_create(cpan, "CPAN:", false, config.cpan_directories())
+for prefix_string, value in pairs(prefixes) do
+    local module = value[1]
+    local directories = value[2]
+    namespace_create(module, prefix_string, false, directories)
+end
+
+--namespace_create(pip, mkprefix("PIP"), true, config.pip_directories())
+--namespace_create(pip, mkprefix("PIP3"), true, config.pip3_directories())
+--namespace_create(lua, mkprefix("LuaRocks"), true, config.luarocks_directories())
+--namespace_create(rubygems, mkprefix("RubyGems"), false, nil)
+--namespace_create(cpan, mkprefix("CPAN"), false, config.cpan_directories())
 
 -- Inotify watches to catch removal of CPAN modules and installation of new ones
-local packlist = {}
-for key in pairs(cpan.packlists) do table.insert(packlist, key) end
-inotify_monitor(vfs.ch, "CPAN:", packlist)
-inotify_monitor(vfs.ch, "CPAN:", config:cpan_inotify_directories())
+--local packlist = {}
+--for key in pairs(cpan.packlists) do table.insert(packlist, key) end
+--inotify_monitor(vfs.ch, mkprefix("CPAN"), packlist)
+--inotify_monitor(vfs.ch, mkprefix("CPAN"), config:cpan_inotify_directories())
 
 -- Run FLU main loop
 local argv = {"AlienVFS", "-oallow_other", "-oauto_unmount", select(1, ...)}
